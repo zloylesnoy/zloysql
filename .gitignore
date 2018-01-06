@@ -16,5 +16,7 @@ cabal.sandbox.config
 *.hp
 *.eventlog
 .stack-work/
+zloysql.cabal
+*~
 cabal.project.local
 .HTF/
