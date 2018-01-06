@@ -1,3 +1,4 @@
 # Changelog for zloysql
 
-## Unreleased changes
+## 06.01.1018
+Project moved to GitHub.
