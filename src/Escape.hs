@@ -10,18 +10,19 @@ import Data.String.Utils (join)
 import Common
 
 
--- |Заключить идентификатор в кавычки. Идентификатор должен быть goodId.
+-- |Quote identifier. Identifier must be goodId.
 quotedId :: Language -> String -> String
 quotedId lang id = case lang of
     MySQL        -> "`"  ++ id ++ "`"
     MicrosoftSQL -> "\"" ++ id ++ "\""
     PostgreSQL   -> "\"" ++ id ++ "\""
 
+-- |List of quoted identifiers. Identifiers must be goodId.
 quotedIds :: Language -> [String] -> String
 quotedIds lang ids = join ", " (map (quotedId lang) ids)
 
 
--- |Заключить строку в кавычки. Использовать escape-последовательности, если нужно.
+-- |Quote string using escape-secuences.
 escaped :: Language -> String -> String
 
 escaped MySQL s = "'" ++ myEscaped s ++ "'"
@@ -35,7 +36,7 @@ escaped PostgreSQL s = if pges == s
 escaped MicrosoftSQL s = "'" ++ myEscaped s ++ "'" -- TODO
 
 
--- Символы, которые экранируются в MySql.Data.MySqlClient.MySqlHelper.EscapeString.
+-- |This symbols escaped in MySql.Data.MySqlClient.MySqlHelper.EscapeString (C#).
 myEscapedChars :: Set.Set Char
 myEscapedChars = Set.fromList [
     '\x0022', '\x0027', '\x005C', '\x0060', '\x00A5', '\x00B4', '\x0160', '\x02B9',
@@ -43,17 +44,18 @@ myEscapedChars = Set.fromList [
     '\x0301', '\x2018', '\x2019', '\x201A', '\x2032', '\x2035', '\x20A9', '\x2216',
     '\x275B', '\x275C', '\xFE68', '\xFF07', '\xFF3C']
 
--- Экранировать символы в строке для MySQL.
+-- |Escape characters for MySQL.
 myEscaped :: String -> String
 myEscaped [] = []
 myEscaped (x:xs) = if Set.member x myEscapedChars
     then '\\' : x : myEscaped xs
     else x : myEscaped xs
 
+-- |Set of characters escaped in PostgreSQL strings.
 pgEscapedChars :: Set.Set Char
 pgEscapedChars = myEscapedChars -- TODO
 
--- Экранировать символы в строке для PostgreSQL.
+-- |Escape characters for PostgreSQL.
 pgEscaped :: String -> String
 pgEscaped [] = []
 pgEscaped ('\\':xs) = '\\' : '\\' : pgEscaped xs
@@ -61,7 +63,7 @@ pgEscaped (x:xs) = if Set.member x pgEscapedChars
     then pgEscCh x ++ pgEscaped xs
     else x : pgEscaped xs
 
--- Экранировать один символ для PostgreSQL.
+-- |Escape one character for PostgreSQL.
 pgEscCh :: Char -> String
 pgEscCh ch = if n < 0x10000
     then ['\\', d3, d2, d1, d0]
@@ -75,6 +77,7 @@ pgEscCh ch = if n < 0x10000
     d4 = hex (shiftR n 16 .&. 15)
     d5 = hex (shiftR n 20 .&. 15)
 
+-- |Decimal 0..15 to hexadecimal character.
 hex :: Int -> Char
 hex 0 = '0'
 hex 1 = '1'
@@ -92,7 +95,7 @@ hex 12 = 'C'
 hex 13 = 'D'
 hex 14 = 'E'
 hex 15 = 'F'
-hex x = error $ "Error in hex " ++ show x
+hex x = error $ "Error in 'hex " ++ show x ++ "' function."
 
 
 

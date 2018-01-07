@@ -3,8 +3,7 @@
 
     Encoding(..), Prefer(..), Kind(..), Type,
 
-    typeInt, typeInt16, typeInt32, typeInt64,
-    typeBits, typeBit, typeByte,
+    typeInt, typeBits,
     typeFloat, typeFloat32, typeFloat64, typeFloat80,
     typeDecimal,
     typeString, typeChar, typeVarChar, typeText,
@@ -34,7 +33,7 @@
 import Common
 
 
--- |Character encodings for string type.
+-- |Supported character encodings for string type.
 data Encoding
     -- |ASCII encoding, code points from 1 to 127.
     = Ascii
@@ -62,52 +61,72 @@ data Prefer
 
 -- |Kinds of data types.
 data Kind
-    -- |Signed integer, binary or decimal. Per-bit operation not supported. Parameters:
-    --    * minValue - Требуемое минимальное значение.
-    --    * maxValue - Требуемое максимальное значение.
+    -- |Signed integer, binary or decimal. Bitwise operations not supported.
+    --  Parameters: type'minValue, type'maxValue.
     = IntKind
 
-    -- |Двоичное целое без знака, поддерживает и арифметические и побитовые операции.
-    --  Параметры:
-    --    * maxValue - Требуемое максимальное значение.
+    -- |Unigned binary integer type. Bitwise operations supported.
+    --  Parameters: type'maxValue.
     | BitsKind
 
-    -- |Десятичное с фиксированной точкой, со знаком. Параметры:
-    --    * digits    - Требуемое число десятичных цифр всего.
-    --    * precision - Требуемое число десятичных цифр после запятой, больше 0.
+    -- |Signed decimal number with fixed point type.
+    --  Parameters: type'digits, type'precision.
     | DecimalKind
 
-    -- |Двоичное с плавающей точкой со знаком. Параметры:
-    --    * mantissa - Требуемый размер мантиссы в битах, включая знаковый бит.
-    --                 Не считаем старший бит мантиссы, который всегда равен 1 и не хранится.
-    --    * expBits  - Требуемый размер экспоненты в битах.
+    -- |Signed binary number with float point type.
+    --  Parameters: type'mantissa, type'expBits.
     | FloatKind
    
-    -- |Строка. Параметры:
-    --    * encoding - Кодировка символов.
-    --    * prefer   - Предпочитаемый строковый тип для базы данных.
-    --    * strlen   - Длина строки в символах.
+    -- |String type.
+    --  Parameters: type'encoding, type'prefer, type'strlen.
     | StringKind
 
     deriving (Show, Eq)
 
--- |Описание типа данных. Поля не экспортируются. Часть полей имеют
---  смысл только при некоторых значениях поля type'kind, указанному в комментариях.
+-- |Data type.
 data Type = Type {
     type'kind      :: Kind,
     type'name      :: String,
     type'comment   :: [String],
     type'nullable  :: Bool,
     type'castTo    :: Maybe String,
-    type'minValue  :: Maybe Integer,  -- IntKind
-    type'maxValue  :: Maybe Integer,  -- IntKind, BitsKind
-    type'digits    :: Maybe Int,      -- DecimalKind
-    type'precision :: Maybe Int,      -- DecimalKind
-    type'mantissa  :: Maybe Int,      -- FloatKind
-    type'expBits   :: Maybe Int,      -- FloatKind
-    type'encoding  :: Maybe Encoding, -- StringKind
-    type'prefer    :: Maybe Prefer,   -- StringKind
-    type'strlen    :: Maybe Integer   -- StringKind
+
+    -- |Only for IntKind.
+    --  Mainimum integer value.
+    type'minValue  :: Maybe Integer,
+
+    -- |Only for IntKind and BitsKind.
+    --  Maximal integer value.
+    type'maxValue  :: Maybe Integer,
+
+    -- |Only for DecimalKind.
+    --  Decimal digits required.
+    type'digits    :: Maybe Int,
+
+    -- |Only for DecimalKind.
+    --  Digits after decimal point.
+    type'precision :: Maybe Int,
+
+    -- |Only for FloatKind.
+    --  Mantissa size in bits. Sign bit included.
+    --  Most significant bit (always 1) not included.
+    type'mantissa  :: Maybe Int,
+
+    -- |Only for FloatKind.
+    --  Exponent size in bits.
+    type'expBits   :: Maybe Int,
+
+    -- |Only for StringKind.
+    --  Character encoding.
+    type'encoding  :: Maybe Encoding,
+
+    -- |Only for StringKind.
+    --  Preferable string type for database.
+    type'prefer    :: Maybe Prefer,
+
+    -- |Only for StringKind.
+    --  Maximum string length in characters.
+    type'strlen    :: Maybe Integer
 }   deriving (Eq)
 
 instance Show Type where
@@ -160,7 +179,7 @@ instance Show Type where
             Nothing -> ""
             Just ss -> indent ++ "strlen = " ++ show ss ++ "\n"
 
--- |Создать заготовку для типа.
+-- |Private constructor for Type.
 newType :: Kind -> Type
 newType k = Type{
     type'kind      = k,
@@ -179,93 +198,46 @@ newType k = Type{
     type'strlen    = Nothing
 }
 
--- |Создать тип целое со знаком минимального размера.
+-- |Signed integer type, size is minimal available.
 typeInt :: Type
 typeInt = (newType IntKind) {
     type'minValue = Just 0,
     type'maxValue = Just 0
 }
 
--- |Создать тип целое 16-битное со знаком.
-typeInt16 :: String -- ^ Имя типа.
-          -> Type
-typeInt16 s = typeInt
-    #name s
-    #bits 16
-
--- |Создать тип целое 32-битное со знаком.
-typeInt32 :: String -- ^ Имя типа.
-          -> Type
-typeInt32 s = typeInt
-    #name s
-    #bits 32
-
--- |Создать тип целое 64-битное со знаком.
-typeInt64 :: String -- ^ Имя типа.
-          -> Type
-typeInt64 s = typeInt
-    #name s
-    #bits 64
-
--- |Создать тип двоичное целое без знака минимального размера.
+-- |Binary unsigned integer type, size is minimal available.
 typeBits :: Type
 typeBits = (newType BitsKind) {
     type'maxValue = Just 0
 }
 
--- |Создать однобитовый тип без знака.
-typeBit :: String -- ^ Имя типа.
-        -> Type
-typeBit s = typeBits
-    #name s
-    #bits 1
-
--- |Создать однобайтовый тип без знака.
-typeByte :: String -- ^ Имя типа.
-         -> Type
-typeByte s = typeBits
-    #name s
-    #bits 8
-
--- |Создать тип с плавающей точкой минимального размера.
+-- |Float point type, size is minimal available.
 typeFloat :: Type
 typeFloat = (newType FloatKind) {
     type'mantissa = Just 0,
     type'expBits  = Just 0
 }
 
--- |Создать тип с плавающей точкой не меньше float, 32 бит.
-typeFloat32 :: String -- ^ Имя типа.
-            -> Type
-typeFloat32 s = typeFloat
-    #name s
-    #mantissa 24
-    #expBits 8
+-- |Float point type, not less standard 32-bit.
+typeFloat32 :: Type
+typeFloat32 = typeFloat #mantissa 24 #expBits 8
 
--- |Создать тип с плавающей точкой не меньше double, 64 бит.
-typeFloat64 :: String -- ^ Имя типа.
-            -> Type
-typeFloat64 s = typeFloat
-    #name s
-    #mantissa 53
-    #expBits 11
+-- |Float point type, not less standard 64-bit.
+typeFloat64 :: Type
+typeFloat64 = typeFloat #mantissa 53 #expBits 11
 
--- |Создать тип с плавающей точкой не меньше long double, 80 бит.
-typeFloat80 :: String -- ^ Имя типа.
-            -> Type
-typeFloat80 s = typeFloat
-    #name s
-    #mantissa 64
-    #expBits 15
+-- |Float point type, not less 80-bit Intel FPU type.
+typeFloat80 :: Type
+typeFloat80 = typeFloat #mantissa 64 #expBits 15
 
--- |Создать тип с фиксированной точкой минимального размера.
+-- |Decimal type, size is minimal available.
 typeDecimal :: Type
 typeDecimal = (newType FloatKind) {
     type'digits    = Just 0,
     type'precision = Just 0
 }
 
--- |Создать строковый тип.
+-- |String type, size 1 character.
 typeString :: Type
 typeString = (newType StringKind) {
     type'encoding = Just Ucs2,
@@ -273,32 +245,17 @@ typeString = (newType StringKind) {
     type'strlen   = Just 1
 }
 
-typeChar :: Integer -- ^ Max длина в символах.
-         -> String  -- ^ Имя типа.
-         -> Type
-typeChar n s = typeString
-    #strlen n
-    #name s
-    #prefer PreferChar
+typeChar :: Integer -> Type
+typeChar n = typeString #strlen n #prefer PreferChar
 
-typeVarChar :: Integer -- ^ Max длина в символах.
-            -> String  -- ^ Имя типа.
-            -> Type
-typeVarChar n s = typeString
-    #strlen n
-    #name s
-    #prefer PreferVarChar
+typeVarChar :: Integer -> Type
+typeVarChar n = typeString #strlen n #prefer PreferVarChar
 
-typeText :: Integer -- ^ Max длина в символах.
-         -> String  -- ^ Имя типа.
-         -> Type
-typeText n s = typeString
-    #strlen n
-    #name s
-    #prefer PreferText
+typeText :: Integer -> Type
+typeText n = typeString #strlen n #prefer PreferText
 
 
--- Проверка имени типа для целевого языка.
+-- |Check type'castTo field, returns [] if OK.
 checkCastTo :: Type -> Errors
 checkCastTo it = case type'castTo it of
     Just s -> if goodIdWithDots s
@@ -306,106 +263,105 @@ checkCastTo it = case type'castTo it of
         else ["Bad type name to cast '" ++ s ++ "'."]
     _ -> []
 
--- Проверка поля type'minValue.
+-- |Check type'minValue field, returns [] if OK.
 checkMinValue :: Type -> Errors
 checkMinValue it = case (type'kind it, type'minValue it) of
-    (IntKind, Nothing) -> ["minValue not defined for IntKind."]
+    (IntKind, Nothing) -> ["type'minValue not defined for IntKind."]
     (IntKind, Just v) -> if v > 0
-        then ["minValue > 0 for IntKind."]
+        then ["type'minValue > 0 for IntKind."]
         else []
     (_, Nothing) -> []
-    (kind, Just _) -> ["minValue defined for " ++ show kind ++ "."]
+    (kind, Just _) -> ["type'minValue defined for " ++ show kind ++ "."]
 
--- Проверка поля type'maxValue.
+-- |Check type'maxValue field, returns [] if OK.
 checkMaxValue :: Type -> Errors
 checkMaxValue it = case (type'kind it, type'maxValue it) of
-    (IntKind, Nothing) -> ["maxValue not defined for IntKind."]
+    (IntKind, Nothing) -> ["type'maxValue not defined for IntKind."]
     (IntKind, Just v) -> if v < 0
-        then ["maxValue < 0 for IntKind."]
+        then ["type'maxValue < 0 for IntKind."]
         else []
-    (BitsKind, Nothing) -> ["maxValue not defined for BitsKind."]
+    (BitsKind, Nothing) -> ["type'maxValue not defined for BitsKind."]
     (BitsKind, Just v) -> if v < 0
-        then ["maxValue < 0 for BitsKind."]
+        then ["type'maxValue < 0 for BitsKind."]
         else []
     (_, Nothing) -> []
-    (kind, Just _) -> ["maxValue defined for " ++ show kind ++ "."]
+    (kind, Just _) -> ["type'maxValue defined for " ++ show kind ++ "."]
 
 
--- Проверка поля type'digits.
+-- |Check type'digits field, returns [] if OK.
 checkDigits :: Type -> Errors
 checkDigits it = case (type'kind it, type'digits it) of
-    (DecimalKind, Nothing) -> ["digits not defined for DecimalKind."]
+    (DecimalKind, Nothing) -> ["type'digits not defined for DecimalKind."]
     (DecimalKind, Just v) -> if v <= 0
-        then ["digits <= 0 for DecimalKind."]
+        then ["type'digits <= 0 for DecimalKind."]
         else []
     (_, Nothing) -> []
-    (kind, Just _) -> ["digits defined for " ++ show kind ++ "."]
+    (kind, Just _) -> ["type'digits defined for " ++ show kind ++ "."]
 
--- Проверка поля type'precision.
+-- |Check type'precision field, returns [] if OK.
 checkPrecision :: Type -> Errors
 checkPrecision it = case (type'kind it, type'precision it) of
-    (DecimalKind, Nothing) -> ["precision not defined for DecimalKind."]
+    (DecimalKind, Nothing) -> ["type'precision not defined for DecimalKind."]
     (DecimalKind, Just v) -> if v <= 0
-        then ["precision <= 0 for DecimalKind."]
+        then ["type'precision <= 0 for DecimalKind."]
         else []
     (_, Nothing) -> []
-    (kind, Just _) -> ["precision defined for " ++ show kind ++ "."]
+    (kind, Just _) -> ["type'precision defined for " ++ show kind ++ "."]
 
--- Проверка соотношения полей type'digits и type'precision.
+-- |Check type'digits and type'precision fields, returns [] if OK.
 checkDP :: Type -> Errors
 checkDP it = case (type'kind it, type'digits it, type'precision it) of
     (DecimalKind, Just d, Just p) -> if p > d
-        then ["precision > digits for DecimalKind."]
+        then ["type'precision > type'digits for DecimalKind."]
         else []
     (_, _, _) -> []
 
--- Проверка поля type'mantissa.
+-- |Check type'mantissa field, returns [] if OK.
 checkMantissa :: Type -> Errors
 checkMantissa it = case (type'kind it, type'mantissa it) of
-    (FloatKind, Nothing) -> ["mantissa not defined for FloatKind."]
+    (FloatKind, Nothing) -> ["type'mantissa not defined for FloatKind."]
     (FloatKind, Just v) -> if v < 0
-        then ["mantissa < 0 for FloatKind."]
+        then ["type'mantissa < 0 for FloatKind."]
         else []
     (_, Nothing) -> []
-    (kind, Just _) -> ["mantissa defined for " ++ show kind ++ "."]
+    (kind, Just _) -> ["type'mantissa defined for " ++ show kind ++ "."]
 
--- Проверка поля type'expBits.
+-- |Check type'expBits field, returns [] if OK.
 checkExpBits :: Type -> Errors
 checkExpBits it = case (type'kind it, type'expBits it) of
-    (FloatKind, Nothing) -> ["expBits not defined for FloatKind."]
+    (FloatKind, Nothing) -> ["type'expBits not defined for FloatKind."]
     (FloatKind, Just v) -> if v < 0
-        then ["expBits < 0 for FloatKind."]
+        then ["type'expBits < 0 for FloatKind."]
         else []
     (_, Nothing) -> []
-    (kind, Just _) -> ["expBits defined for " ++ show kind ++ "."]
+    (kind, Just _) -> ["type'expBits defined for " ++ show kind ++ "."]
 
--- Проверка поля type'encoding.
+-- |Check type'encoding field, returns [] if OK.
 checkEncoding :: Type -> Errors
 checkEncoding it = case (type'kind it, type'encoding it) of
-    (StringKind, Nothing) -> ["encoding not defined for StringKind."]
+    (StringKind, Nothing) -> ["type'encoding not defined for StringKind."]
     (StringKind, Just _) -> []
-    (kind, Just _) -> ["encoding defined for " ++ show kind ++ "."]
+    (kind, Just _) -> ["type'encoding defined for " ++ show kind ++ "."]
     (_, _) -> []
    
--- Проверка поля type'prefer.
+-- |Check type'prefer field, returns [] if OK.
 checkPrefer :: Type -> Errors
 checkPrefer it = case (type'kind it, type'prefer it) of
-    (StringKind, Nothing) -> ["prefer not defined for StringKind."]
+    (StringKind, Nothing) -> ["type'prefer not defined for StringKind."]
     (StringKind, Just _) -> []
-    (kind, Just _) -> ["prefer defined for " ++ show kind ++ "."]
+    (kind, Just _) -> ["type'prefer defined for " ++ show kind ++ "."]
     (_, _) -> []
 
--- Проверка поля type'strlen.
+-- |Check type'strlen field, returns [] if OK.
 checkStrlen :: Type -> Errors
 checkStrlen it = case (type'kind it, type'strlen it) of
-    (StringKind, Nothing) -> ["strlen not defined for StringKind."]
+    (StringKind, Nothing) -> ["type'strlen not defined for StringKind."]
     (StringKind, Just v) -> if v <= 0
-        then ["strlen <= 0 for StringKind."]
+        then ["type'strlen <= 0 for StringKind."]
         else []
     (_, Nothing) -> []
-    (kind, Just _) -> ["strlen defined for " ++ show kind ++ "."]
+    (kind, Just _) -> ["type'strlen defined for " ++ show kind ++ "."]
 
--- Проверка типа данных, возвращает список ошибок.
 instance HasCheck Type where
     check _ it = errorIn it $ checkName it
         ++ checkCastTo it
@@ -421,20 +377,17 @@ instance HasCheck Type where
         ++ checkStrlen it
 
 
--- Имя типа данных.
 instance HasName Type where
     getName = type'name
     name v it = it{ type'name = v }
     getTitle it = "type '" ++ type'name it ++ "'"
 
-
--- Комментарий к типу данных.
 instance HasComment Type where
     getComment = type'comment
     comment v it = it{ type'comment = v }
 
 
--- Допустимы ли NULL-значения для типа данных.
+-- Is NULL value supported.
 getNullable :: Type -> Bool
 getNullable = type'nullable
 
@@ -442,10 +395,10 @@ nullable :: Bool -> Type -> Type
 nullable v it = it{ type'nullable = v }
 
 maybeNull :: Type -> Type
-maybeNull a = nullable True a
+maybeNull a = a #nullable True
 
 notNull :: Type -> Type
-notNull a = nullable False a
+notNull a = a #nullable False
 
 
 -- Для некоторых типов данных нужно генерировать автоматическую
@@ -466,47 +419,47 @@ getKind = type'kind
 getMinValue :: Type -> Integer
 getMinValue it = case type'minValue it of
     Just v -> v
-    Nothing -> error (getTitle it ++ " type supports minValue property.")
+    Nothing -> error (getTitle it ++ " type supports type'minValue property.")
 
 getMaxValue :: Type -> Integer
 getMaxValue it = case type'maxValue it of
     Just v -> v
-    Nothing -> error (getTitle it ++ " not supports maxValue property.")
+    Nothing -> error (getTitle it ++ " not supports type'maxValue property.")
 
 getDigits :: Type -> Int
 getDigits it = case type'digits it of
     Just v -> v
-    Nothing -> error (getTitle it ++ " not supports digits property.")
+    Nothing -> error (getTitle it ++ " not supports type'digits property.")
 
 getPrecision :: Type -> Int
 getPrecision it = case type'precision it of
     Just v -> v
-    Nothing -> error (getTitle it ++ " not supports precision property.")
+    Nothing -> error (getTitle it ++ " not supports type'precision property.")
 
 getMantissa :: Type -> Int
 getMantissa it = case type'mantissa it of
     Just v -> v
-    Nothing -> error (getTitle it ++ " not supports mantissa property.")
+    Nothing -> error (getTitle it ++ " not supports type'mantissa property.")
 
 getExpBits :: Type -> Int
 getExpBits it = case type'expBits it of
     Just v -> v
-    Nothing -> error (getTitle it ++ " not supports expBits property.")
+    Nothing -> error (getTitle it ++ " not supports type'expBits property.")
 
 getEncoding :: Type -> Encoding
 getEncoding it = case type'encoding it of
     Just v -> v
-    Nothing -> error (getTitle it ++ " not supports encoding property.")
+    Nothing -> error (getTitle it ++ " not supports type'encoding property.")
 
 getPrefer :: Type -> Prefer
 getPrefer it = case type'prefer it of
     Just v -> v
-    Nothing -> error (getTitle it ++ " not supports prefer property.")
+    Nothing -> error (getTitle it ++ " not supports type'prefer property.")
 
 getStrlen :: Type -> Integer
 getStrlen it = case type'strlen it of
     Just v -> v
-    Nothing -> error (getTitle it ++ " not supports strlen property.")
+    Nothing -> error (getTitle it ++ " not supports type'strlen property.")
 
 
 -- Сеттеры ничего не проверяют.
@@ -545,7 +498,7 @@ bits :: Int -> Type -> Type
 bits v it = case type'kind it of
     IntKind -> it # maxValue (pow2x (v - 1) - 1) # minValue (0 - pow2x (v - 1))
     BitsKind -> it # maxValue (pow2x v - 1)
-    _ -> error (getTitle it ++ " not supports bits property.")
+    _ -> error (getTitle it ++ " not supports type'bits property.")
 
 includeValue :: Integer -> Type -> Type
 includeValue v it = it # minValue (min v (getMinValue it)) # maxValue (max v (getMaxValue it))

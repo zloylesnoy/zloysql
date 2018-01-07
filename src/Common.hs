@@ -4,7 +4,7 @@
     Order(..), orderFieldName,
 
     indent, indented,
-    pow2x, pow10x, -- showDecimal,
+    pow2x, pow10x, showDecimal,
     notUniques, goodId, goodIdWithDots,
     Errors,
 
@@ -80,13 +80,11 @@ pow2x x = (2 :: Integer) ^ x
 pow10x :: Int -> Integer
 pow10x x = (10 :: Integer) ^ x
 
-{-
 showDecimal :: Integer -> Int -> String
 showDecimal digs prec = show d ++ "." ++ tail(show(one + m))
   where
     one = pow10x prec
     (d, m) = divMod digs one
--}
 
 
 -- |Найти неуникальные имена.
