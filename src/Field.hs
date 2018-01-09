@@ -1,10 +1,9 @@
 ﻿module Field (
-    module Type,
-
     Field, field,
     HasFields, getFields, hasField, getField
 ) where
 
+import Common
 import Type
 
 

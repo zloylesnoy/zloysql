@@ -1,9 +1,12 @@
 ﻿module Delete (
-    Delete, delete, deleteAll, deleteBy,
-    sqlDelete
+    Delete, delete, deleteAll, deleteBy
 ) where
 
+import Common
+import Record
+import Table
 import Select
+
 
 -- |Запрос DELETE.
 data Delete = Delete {
@@ -52,6 +55,9 @@ instance HasComment Delete where
     comment ss t = t{ delete'comment = ss }
     getComment = delete'comment
 
+instance HasTable Delete where
+    getTable = delete'table
+
 instance HasTables Delete where
     innerTables del = [delete'table del] ++ innerTables (delete'where del)
     innerRecords del = innerRecords (delete'where del)
@@ -64,14 +70,6 @@ instance HasWhere Delete where
     where_ w del = del{ delete'where = simplify w }
     getWhere = delete'where
 
-
--- |Возвращает оператор SQL DELETE.
-sqlDelete :: Language -> Delete -> String
-sqlDelete lang del = "DELETE FROM " ++ sFrom ++ sWhere
-  where
-    sFrom  = quotedId lang (getName $ delete'table del)
-    sWhere = let wr = getWhere del in
-        if wr == ExprTrue then "" else "\nWHERE " ++ sqlExpr lang wr
 
 
 

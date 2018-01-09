@@ -1,12 +1,11 @@
 ﻿module Escape (
-    module Common,
-
     quotedId, quotedIds, escaped
 ) where 
 
 import Data.Bits ((.&.), shiftR)
 import qualified Data.Set as Set
 import Data.String.Utils (join)
+
 import Common
 
 

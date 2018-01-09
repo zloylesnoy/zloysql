@@ -1,9 +1,8 @@
-﻿module TypeSql (
-    module Type,
-
+﻿module SqlType (
     sqlTypeName
 ) where
 
+import Common
 import Type
 
 

@@ -1,16 +1,18 @@
 ﻿module Scheme (
-    module Index,
-    module ForeignKey,
-    module Select,
-    module Delete,
-    module Update,
-
     Scheme, scheme,
     SchemeAdd, add, adds,
-    sqlCreate, sqlDrop, sqlQueries
+
+    getTypes, getRecords, getTables, getIndexes, getForeignKeys,
+    getSelects, getDeletes, getUpdates
 ) where 
 
 import Data.String.Utils (join)
+
+import Common
+import Type
+import Field
+import Record
+import Table
 import Index
 import ForeignKey
 import Select
@@ -81,6 +83,31 @@ instance HasComment Scheme where
     comment ss t = t{ scheme'comment = ss }
     getComment = scheme'comment
 
+getTypes :: Scheme -> [Type]
+getTypes = scheme'types
+
+getRecords :: Scheme -> [Record]
+getRecords = scheme'records
+
+getTables :: Scheme -> [Table]
+getTables = scheme'tables
+
+getIndexes :: Scheme -> [Index]
+getIndexes = scheme'indexes
+
+getForeignKeys :: Scheme -> [ForeignKey]
+getForeignKeys = scheme'fkeys
+
+getSelects :: Scheme -> [Select]
+getSelects = scheme'selects
+
+getDeletes :: Scheme -> [Delete]
+getDeletes = scheme'deletes
+
+getUpdates :: Scheme -> [Update]
+getUpdates = scheme'updates
+
+
 addErrorsToScheme :: Errors -> Scheme -> Scheme
 addErrorsToScheme errs sch =
     sch{ scheme'errors = oldErrs ++ errs }
@@ -144,7 +171,7 @@ instance SchemeAdd Table where
 instance SchemeAdd Index where
     add idx sch = if null errs
         then sch{ scheme'indexes = idxs }
-            #add (getIndexTable idx)
+            #add (getTable idx)
         else addErrorsToScheme errs sch
       where
         (idxs, errs) = addDef idx (scheme'indexes sch)
@@ -202,22 +229,7 @@ instance HasCheck Scheme where
         ++ checkItems lang (scheme'fkeys it)
 
 
--- |Возвращает набор операторов SQL, которые создают все таблицы и прочее.
---  Схема должна быть проверена функцией check.
-sqlCreate :: Language -> Scheme -> [String]
-sqlCreate lang sch = map (sqlCreateTable lang) (scheme'tables sch)
-    ++ map (sqlCreateIndex lang) (scheme'indexes sch)
-    ++ map (sqlCreateFKey  lang) (scheme'fkeys sch)
 
--- |Возвращает набор операторов SQL, которые удаляют все таблицы.
-sqlDrop :: Language -> Scheme -> [String]
-sqlDrop lang sch = reverse $ map (sqlDropTable lang) (scheme'tables sch)
-
--- |Возвращает набор операторов SQL, определённых в схеме.
-sqlQueries :: Language -> Scheme -> [String]
-sqlQueries lang sch = map (sqlSelect lang) (scheme'selects sch)
-    ++ map (sqlDelete lang) (scheme'deletes sch)
-    ++ map (sqlUpdate lang) (scheme'updates sch)
 
 
 

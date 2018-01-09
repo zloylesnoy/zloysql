@@ -1,6 +1,4 @@
 ﻿module Select (
-    module Table,
-
     HasTables, innerTables, innerRecords,
 
     Expression(..), simplify,
@@ -30,6 +28,12 @@
 
 import Data.String.Utils (join)
 import qualified Data.Map.Strict as Map
+
+import Common
+import Escape
+import Type
+import Field
+import Record
 import Table
 
 

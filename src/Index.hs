@@ -1,13 +1,15 @@
 ﻿module Index (
-    module Table,
-
     Index, IndexKind(..),
-    index,
-    unique, getIndexTable,
-    sqlCreateIndex
+    index, unique,
+    getIndexKind, getOrder
 ) where
 
 import Data.String.Utils (join)
+
+import Common
+import Escape
+import Type
+import Field
 import Table
 
 
@@ -37,7 +39,7 @@ data Index = Index {
     index'comment :: [String],  -- ^ Комментарий к индексу.
     index'kind    :: IndexKind, -- ^ Разновидность индекса.
     index'table   :: Table,     -- ^ Индексируемая таблица
-    index'fields  :: [Order]    -- ^ Поля индекса.
+    index'order   :: [Order]    -- ^ Поля индекса.
 } deriving (Eq)
 
 index :: Table -> [Order] -> Index
@@ -46,14 +48,17 @@ index tab orr = Index{
     index'comment = [],
     index'kind    = NotUniqueIndex,
     index'table   = tab,
-    index'fields  = orr
+    index'order   = orr
 }
 
 unique :: Index -> Index
 unique idx = idx{ index'kind = UniqueIndex }
 
-getIndexTable :: Index -> Table
-getIndexTable = index'table
+getIndexKind :: Index -> IndexKind
+getIndexKind = index'kind
+
+getOrder :: Index -> [Order]
+getOrder = index'order
 
 
 instance Show Index where
@@ -65,7 +70,7 @@ instance Show Index where
         ++ "}"
       where
         sKind = indent ++ show (index'kind x) ++ "\n"
-        sFields = join ",\n" $ map show (index'fields x)
+        sFields = join ",\n" $ map show (getOrder x)
 
 instance HasName Index where
     name s it = it{ index'name = s }
@@ -75,6 +80,9 @@ instance HasName Index where
 instance HasComment Index where
     comment ss it = it{ index'comment = ss }
     getComment = index'comment
+
+instance HasTable Index where
+    getTable = index'table
 
 instance HasCheck Index where
     check lang it = errorIn it $ checkName it
@@ -87,7 +95,7 @@ checkFields idx
     | null dups  = concat $ map (checkOneField idx) names
     | otherwise  = map dupMsg dups -- есть дублирующиеся поля в индексе
   where
-    names = map orderFieldName (index'fields idx)
+    names = map orderFieldName (getOrder idx)
     dups = notUniques names
     dupMsg = (\s -> "Duplicate '" ++ s ++ "' field in index.")
 
@@ -99,25 +107,6 @@ checkOneField idx fld = case getField fld (index'table idx) of
         else []
 
 
-sqlIndexField :: Language -> Order -> String
-sqlIndexField lang (Asc  fld) = quotedId lang fld ++ " ASC"
-sqlIndexField lang (Desc fld) = quotedId lang fld ++ " DESC"
-
--- |Возвращает оператор SQL, который создаёт индекс.
-sqlCreateIndex :: Language -> Index -> String
-sqlCreateIndex lang idx = create
-    ++ quotedId lang (getName idx)
-    ++ " ON "
-    ++ quotedId lang (getName $ index'table idx)
-    ++ " ("
-    ++ join ", " fields
-    ++ ")"
-  where
-    create = case index'kind idx of
-        NotUniqueIndex -> "CREATE INDEX "
-        UniqueIndex    -> "CREATE UNIQUE INDEX "
-        _ -> error $ show (index'kind idx) ++ " index not implemented yet."
-    fields = map (sqlIndexField lang) (index'fields idx)
 
 
 

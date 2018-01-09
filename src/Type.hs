@@ -1,6 +1,4 @@
 ﻿module Type (
-    module Common,
-
     Encoding(..), Prefer(..), Kind(..), Type,
 
     typeInt, typeBits,

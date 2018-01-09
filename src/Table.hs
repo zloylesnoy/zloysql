@@ -1,8 +1,4 @@
 ﻿module Table (
-    module Record,
-    module Value,
-    module TypeSql,
-
     Table, table,
     getRecord,
     key, getKey,
@@ -10,17 +6,21 @@
     getDefaultValue, removeDefaultValue,
     defaultNull, defaultInt, defaultDecimal, defaultDouble, defaultString,
     MyEngine(..), engine, getEngine,
+    HasTable, getTable,
 
-    selectedRecord, primaryKeyRecord,
-    sqlCreateTable, sqlDropTable
+    selectedRecord, primaryKeyRecord
 ) where
 
 import qualified Data.Map.Strict as Map
 import Data.Scientific (Scientific)
 import Data.String.Utils (join)
+
+import Common
+import Type
+import Escape
+import Field
 import Record
 import Value
-import TypeSql
 
 
 data MyEngine = MYISAM | INNODB | MEMORY deriving (Show, Eq)
@@ -213,41 +213,10 @@ selectedRecord tab flds = record
 primaryKeyRecord :: Table -> Record
 primaryKeyRecord tab = selectedRecord tab (getKey tab) #name (getName tab ++ "_key")
 
+class HasTable it where
+    getTable :: it -> Table
 
-isAutokey :: Table -> Field -> Bool
-isAutokey tab fld = case getAutokey tab of
-    Nothing -> False
-    Just ak -> ak == getName fld
 
-sqlTableField :: Language -> Table -> Field -> String
-sqlTableField lang tab fld = case sqlTypeName lang (getType fld) (isAutokey tab fld) of
-    Nothing -> error $ "Can not write SQL for " ++ getTitle fld ++ " in " ++ getTitle tab ++ "."
-    Just tn -> indent ++ quotedId lang (getName fld) ++ " " ++ tn ++ defValue ++ ",\n"
-  where
-    defValue = case getDefaultValue (getName fld) tab of
-        Nothing -> ""
-        Just dv -> " DEFAULT " ++ sqlDefaultValue lang dv
-
--- |Возвращает оператор SQL, который создаёт таблицу.
---  Таблица должна быть проверена функцией check.
-sqlCreateTable :: Language -> Table -> String
-sqlCreateTable lang tab = s0 ++ concat ss ++ pk ++ eng
-  where
-    s0 = "CREATE TABLE "
-        ++ quotedId lang (getName tab)
-        ++ " (\n"
-    ss = map (sqlTableField lang tab) $ getFields tab
-    pk = indent
-        ++ "PRIMARY KEY ("
-        ++ quotedIds lang (getKey tab)
-        ++ ")\n"
-    eng = if lang == MySQL
-        then ") ENGINE = " ++ show (getEngine tab)
-        else ")"
-
--- |Возвращает оператор SQL, который уничтожает таблицу.
-sqlDropTable :: Language -> Table -> String
-sqlDropTable lang tab = "DROP TABLE " ++ quotedId lang (getName tab)
 
 
 

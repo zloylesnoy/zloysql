@@ -1,11 +1,10 @@
 ﻿module Value (
-    module Type,
-    module Escape,
-
-    Value(..), checkValue, sqlDefaultValue
+    Value(..), checkValue
 ) where
 
 import Data.Scientific (Scientific, toDecimalDigits)
+
+import Common
 import Type
 import Escape
 
@@ -17,13 +16,6 @@ data Value
     | DoubleValue Double
     | StringValue String
     deriving(Eq, Show)
-
-sqlDefaultValue :: Language -> Value -> String
-sqlDefaultValue lang (StringValue x) = escaped lang x
-sqlDefaultValue _ NullValue = "NULL"
-sqlDefaultValue _ (IntValue x) = show x
-sqlDefaultValue _ (DoubleValue x) = show x
-sqlDefaultValue _ (DecimalValue x) = show x
 
 
 -- |Проверка, что значение соответствует типу.

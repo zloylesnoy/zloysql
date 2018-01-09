@@ -1,6 +1,4 @@
 ﻿module Record (
-    module Field,
-
     Record, record,
     fields, addFields,
     joinField, joinFields, joinRecords,
@@ -8,6 +6,8 @@
 ) where
 
 import Data.String.Utils (join)
+
+import Common
 import Field
 
 

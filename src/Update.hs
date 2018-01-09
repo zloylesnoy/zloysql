@@ -1,8 +1,14 @@
 ﻿module Update (
-    Update, update, sqlUpdate
+    Update, update,
+    getUpdateSet
 ) where
 
 import Data.String.Utils (join)
+
+import Common
+import Escape
+import Record
+import Table
 import Select
 
 
@@ -58,18 +64,12 @@ instance HasWhere Update where
     where_ w upd = upd{ update'where = simplify w }
     getWhere = update'where
 
-
--- |Возвращает оператор SQL UPDATE.
-sqlUpdate :: Language -> Update -> String
-sqlUpdate lang upd = "UPDATE " ++ sTable ++ " SET\n  " ++ sSet ++ sWhere
-  where
-    sTable = quotedId lang $ getName $ update'table upd
-    sWhere = let wr = getWhere upd in
-        if wr == ExprTrue then "" else "\nWHERE " ++ sqlExpr lang wr
-    sSet = join "\n  " $ map (sqlExpr lang) (update'set upd)
+instance HasTable Update where
+    getTable = update'table
 
 
-
+getUpdateSet :: Update -> [Expression]
+getUpdateSet = update'set
 
 
 

@@ -1,9 +1,9 @@
 ﻿module Const (
-    module Value,
-
     Const, getValue
 ) where
 
+import Common
+import Type
 import Value
 
 

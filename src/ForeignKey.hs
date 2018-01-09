@@ -1,16 +1,19 @@
 ﻿module ForeignKey (
-    module Table,
-
     ForeignKeyAction(..),
     ForeignKey, foreignKey,
-    getParentTable, getChildTable,
-    onDelete, onUpdate,
-
-    sqlCreateFKey
+    getParentTable, getChildTable, getParentFields, getChildFields,
+    onDelete, getOnDelete,
+    onUpdate, getOnUpdate
 ) where
 
 import Data.String.Utils (join)
+
+import Common
+import Escape
+import Type
+import Field
 import Table
+
 
 -- |Действие при удалении или изменении внешнего ключа.
 data ForeignKeyAction
@@ -71,18 +74,32 @@ getParentTable = fkey'parent
 getChildTable :: ForeignKey -> Table
 getChildTable = fkey'child
 
+getParentFields :: ForeignKey -> [String]
+getParentFields fkey = map fst (fkey'fields fkey)
+
+getChildFields :: ForeignKey -> [String]
+getChildFields fkey = map snd (fkey'fields fkey)
+
 
 onDelete :: ForeignKeyAction -> ForeignKey -> ForeignKey
 onDelete action fkey = fkey{ fkey'onDelete = action }
 
+getOnDelete :: ForeignKey -> ForeignKeyAction
+getOnDelete = fkey'onDelete
+
+
 onUpdate :: ForeignKeyAction -> ForeignKey -> ForeignKey
 onUpdate action fkey = fkey{ fkey'onUpdate = action }
+
+getOnUpdate :: ForeignKey -> ForeignKeyAction
+getOnUpdate = fkey'onUpdate
+
 
 instance Show ForeignKey where
     show x = "ForeignKey " ++ show (getName x) ++ " {\n"
         ++ showComment CLang x
-        ++ indent ++ "Parent = " ++ getName (fkey'parent x) ++ "\n"
-        ++ indent ++ "Child  = " ++ getName (fkey'child x) ++ "\n"
+        ++ indent ++ "Parent = " ++ getName (getParentTable x) ++ "\n"
+        ++ indent ++ "Child  = " ++ getName (getChildTable x) ++ "\n"
         ++ indented ("Fields = [\n" ++ indented sFields ++ "\n]") ++ "\n"
         ++ indented ("OnDelete = " ++ show (fkey'onDelete x)) ++ "\n"
         ++ indented ("OnUpdate = " ++ show (fkey'onUpdate x)) ++ "\n"
@@ -101,8 +118,8 @@ instance HasComment ForeignKey where
 
 instance HasCheck ForeignKey where
     check lang it = errorIn it $ checkName it
-        ++ check lang (fkey'parent it)
-        ++ check lang (fkey'child it)
+        ++ check lang (getParentTable it)
+        ++ check lang (getChildTable it)
         ++ checkFields it
 
 checkFields :: ForeignKey -> Errors
@@ -136,36 +153,11 @@ checkTypes fkey (par, chd) = case (parT, chdT) of
     (Just pt, Just ct) -> if pt == ct then []
         else ["Field '" ++ par ++ "' and field '" ++ chd ++ "' has different types."]
   where
-    parT = fkeyFieldType fkey (fkey'parent fkey) par
-    chdT = fkeyFieldType fkey (fkey'child  fkey) chd
+    parT = fkeyFieldType fkey (getParentTable fkey) par
+    chdT = fkeyFieldType fkey (getChildTable fkey) chd
 
 
--- |Возвращает оператор SQL, который создаёт внешний ключ.
-sqlCreateFKey :: Language -> ForeignKey -> String
-sqlCreateFKey lang fkey = "ALTER TABLE "
-    ++ quotedId lang (getName $ fkey'child fkey)
-    ++ " ADD CONSTRAINT "
-    ++ quotedId lang (getName fkey)
-    ++ "\nFOREIGN KEY ("
-    ++ quotedIds lang childFields
-    ++ ")\nREFERENCES "
-    ++ quotedId lang (getName $ fkey'parent fkey)
-    ++ " ("
-    ++ quotedIds lang parentFields
-    ++ ")\nON DELETE "
-    ++ show (correctAction lang (fkey'onDelete fkey))
-    ++ "\nON UPDATE "
-    ++ show (correctAction lang (fkey'onUpdate fkey))
-  where
-    childFields  = map snd (fkey'fields fkey)
-    parentFields = map fst (fkey'fields fkey)
 
--- |Проверяет, какой диалект SQL поддерживает какие ForeignKeyAction.
-correctAction :: Language -> ForeignKeyAction -> ForeignKeyAction
-correctAction lang act = case (lang, act) of
-    (MicrosoftSQL, Restrict) -> NoAction
-    (MySQL, SetDefault) -> error "Error in foreign key: SET DEFAULT action not supported in MySQL."
-    _ -> act
 
 
 

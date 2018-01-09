@@ -15,8 +15,7 @@
 
 import Text.Regex.Posix ((=~))
 import Data.String.Utils (join, split)
-import qualified Data.Set as Set
-import Data.Scientific (Scientific)
+-- import Data.Scientific (Scientific)
 
 
 --  Adds one comment line.
