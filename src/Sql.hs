@@ -1,5 +1,4 @@
 ﻿module Sql (
-    sqlDelete,
     sqlCreate, sqlDrop, sqlQueries
 ) where
 
@@ -28,22 +27,20 @@ sqlDefaultValue _ (DoubleValue x) = show x
 sqlDefaultValue _ (DecimalValue x) = show x
 
 
-isAutokey :: Table -> Field -> Bool
-isAutokey tab fld = case getAutokey tab of
-    Nothing -> False
-    Just ak -> ak == getName fld
-
 sqlTableField :: Language -> Table -> Field -> String
-sqlTableField lang tab fld = case sqlTypeName lang (getType fld) (isAutokey tab fld) of
+sqlTableField lang tab fld = case sqlTypeName lang (getType fld) isAutokey of
     Nothing -> error $ "Can not write SQL for " ++ getTitle fld ++ " in " ++ getTitle tab ++ "."
     Just tn -> indent ++ quotedId lang (getName fld) ++ " " ++ tn ++ defValue ++ ",\n"
   where
     defValue = case getDefaultValue (getName fld) tab of
         Nothing -> ""
         Just dv -> " DEFAULT " ++ sqlDefaultValue lang dv
+    isAutokey = case getAutokey tab of
+        Nothing -> False
+        Just ak -> ak == getName fld
 
--- |Возвращает оператор SQL, который создаёт таблицу.
---  Таблица должна быть проверена функцией check.
+
+-- |SQL CREATE TABLE code generator.
 sqlCreateTable :: Language -> Table -> String
 sqlCreateTable lang tab = s0 ++ concat ss ++ pk ++ eng
   where
@@ -59,16 +56,13 @@ sqlCreateTable lang tab = s0 ++ concat ss ++ pk ++ eng
         then ") ENGINE = " ++ show (getEngine tab)
         else ")"
 
--- |Возвращает оператор SQL, который уничтожает таблицу.
+
+-- |SQL DROP TABLE code generator.
 sqlDropTable :: Language -> Table -> String
 sqlDropTable lang tab = "DROP TABLE " ++ quotedId lang (getName tab)
 
 
-sqlIndexField :: Language -> Order -> String
-sqlIndexField lang (Asc  fld) = quotedId lang fld ++ " ASC"
-sqlIndexField lang (Desc fld) = quotedId lang fld ++ " DESC"
-
--- |Возвращает оператор SQL, который создаёт индекс.
+-- |SQL CREATE INDEX code generator.
 sqlCreateIndex :: Language -> Index -> String
 sqlCreateIndex lang idx = create
     ++ quotedId lang (getName idx)
@@ -82,10 +76,15 @@ sqlCreateIndex lang idx = create
         NotUniqueIndex -> "CREATE INDEX "
         UniqueIndex    -> "CREATE UNIQUE INDEX "
         _ -> error $ show (getIndexKind idx) ++ " index not implemented yet."
-    fields = map (sqlIndexField lang) (getOrder idx)
+
+    sqlIndexField :: Order -> String
+    sqlIndexField (Asc  fld) = quotedId lang fld ++ " ASC"
+    sqlIndexField (Desc fld) = quotedId lang fld ++ " DESC"
+
+    fields = map sqlIndexField (getOrder idx)
 
 
--- |Возвращает оператор SQL, который создаёт внешний ключ.
+-- |SQL FOREIGN KEY code generator.
 sqlCreateFKey :: Language -> ForeignKey -> String
 sqlCreateFKey lang fkey = "ALTER TABLE "
     ++ quotedId lang (getName $ getChildTable fkey)
@@ -98,16 +97,15 @@ sqlCreateFKey lang fkey = "ALTER TABLE "
     ++ " ("
     ++ quotedIds lang (getParentFields fkey)
     ++ ")\nON DELETE "
-    ++ show (correctAction lang (getOnDelete fkey))
+    ++ show (correct $ getOnDelete fkey)
     ++ "\nON UPDATE "
-    ++ show (correctAction lang (getOnUpdate fkey))
-
--- |Проверяет, какой диалект SQL поддерживает какие ForeignKeyAction.
-correctAction :: Language -> ForeignKeyAction -> ForeignKeyAction
-correctAction lang act = case (lang, act) of
-    (MicrosoftSQL, Restrict) -> NoAction
-    (MySQL, SetDefault) -> error "Error in foreign key: SET DEFAULT action not supported in MySQL."
-    _ -> act
+    ++ show (correct $ getOnUpdate fkey)
+  where
+    correct :: ForeignKeyAction -> ForeignKeyAction
+    correct act = case (lang, act) of
+        (MicrosoftSQL, Restrict  ) -> NoAction
+        (MySQL       , SetDefault) -> error "Error in foreign key: SET DEFAULT action not supported in MySQL."
+        _                          -> act
 
 
 -- |SQL DELETE code generator.
@@ -119,7 +117,7 @@ sqlDelete lang del = "DELETE FROM " ++ sFrom ++ sWhere
         if wr == ExprTrue then "" else "\nWHERE " ++ sqlExpr lang wr
 
 
--- |Возвращает оператор SQL UPDATE.
+-- |SQL UPDATE code generator.
 sqlUpdate :: Language -> Update -> String
 sqlUpdate lang upd = "UPDATE " ++ sTable ++ " SET\n  " ++ sSet ++ sWhere
   where
@@ -129,20 +127,21 @@ sqlUpdate lang upd = "UPDATE " ++ sTable ++ " SET\n  " ++ sSet ++ sWhere
     sSet = join "\n  " $ map (sqlExpr lang) (getUpdateSet upd)
 
 
--- |Возвращает набор операторов SQL, которые создают все таблицы и прочее.
---  Схема должна быть проверена функцией check.
+-- |Returns sequence of the SQL operators to create all tables and
+--  constraints for database scheme. Scheme must be checked.
 sqlCreate :: Language -> Scheme -> [String]
 sqlCreate lang sch = map (sqlCreateTable lang) (getTables sch)
     ++ map (sqlCreateIndex lang) (getIndexes sch)
     ++ map (sqlCreateFKey  lang) (getForeignKeys sch)
 
 
--- |Возвращает набор операторов SQL, которые удаляют все таблицы.
+-- |Returns sequence of the SQL operators to delete all tables and
+--  constraints for database scheme. Scheme must be checked.
 sqlDrop :: Language -> Scheme -> [String]
 sqlDrop lang sch = reverse $ map (sqlDropTable lang) (getTables sch)
 
 
--- |Возвращает набор операторов SQL, определённых в схеме.
+-- |Returns set of the SQL operators defined in database scheme.
 sqlQueries :: Language -> Scheme -> [String]
 sqlQueries lang sch = map (sqlSelect lang) (getSelects sch)
     ++ map (sqlDelete lang) (getDeletes sch)
