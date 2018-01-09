@@ -5,16 +5,17 @@
     Value(..), checkValue, sqlDefaultValue
 ) where
 
+import Data.Scientific (Scientific, toDecimalDigits)
 import Type
 import Escape
 
 
--- |Значение.
-data Value = NullValue         -- NULL
-    | IntValue Integer         -- IntKind, BitsKind
-    | DecimalValue Integer Int -- DecimalKind(цифры, число цифр после запятой >= 0)
-    | DoubleValue Double       -- FloatKind
-    | StringValue String       -- StringKind
+data Value
+    = NullValue
+    | IntValue Integer
+    | DecimalValue Scientific
+    | DoubleValue Double
+    | StringValue String
     deriving(Eq, Show)
 
 sqlDefaultValue :: Language -> Value -> String
@@ -22,7 +23,7 @@ sqlDefaultValue lang (StringValue x) = escaped lang x
 sqlDefaultValue _ NullValue = "NULL"
 sqlDefaultValue _ (IntValue x) = show x
 sqlDefaultValue _ (DoubleValue x) = show x
-sqlDefaultValue _ (DecimalValue digs prec) = showDecimal digs prec
+sqlDefaultValue _ (DecimalValue x) = show x
 
 
 -- |Проверка, что значение соответствует типу.
@@ -35,26 +36,36 @@ chVal t NullValue _ = if getNullable t
     then []
     else ["Null value not match '" ++ getName t ++ "' type."]
 
-chVal _ (DoubleValue v) FloatKind = [] -- TODO: Надо проверить, влезает ли в диапазон
-chVal t (DoubleValue v) _ = ["Value of the '" ++ getName t ++ "' can not be float."]
+chVal _ (DoubleValue _) FloatKind = [] -- TODO: Надо проверить, влезает ли в диапазон
+chVal t (DoubleValue _) _ = ["Value of the '" ++ getName t ++ "' can not be float."]
 
 chVal t (StringValue v) StringKind
     | getStrlen t < toInteger (length v) = ["Value of the '" ++ getName t ++ "' is too long."]
     -- TODO: Надо проверить кодировку
     | otherwise = []
-chVal t (StringValue v) _ = ["Value of the '" ++ getName t ++ "' can not be string."]
+chVal t (StringValue _) _ = ["Value of the '" ++ getName t ++ "' can not be string."]
 
-chVal t (DecimalValue v d) DecimalKind
-    | d < 0     = ["Value of the '" ++ getName t ++ "' has negative precision."]
-    | d > getPrecision t = ["Value of the '" ++ getName t ++ "' has too big precision."]
-    | v > maxv  = ["Value of the '" ++ getName t ++ "' decimal type is greater than max value."]
-    | v < minv  = ["Value of the '" ++ getName t ++ "' decimal type is lesser than min value."]
+chVal t (DecimalValue sc) DecimalKind
+    |scBefore > tBefore = ["Value of the '" ++ getName t ++ "' decimal type is too big."]
+    |scAfter > tAfter = ["Value of the '" ++ getName t ++ "' decimal type has too big precision."]
     | otherwise = []
   where
-    dp = getPrecision t - d -- недостаток точности
-    maxv = pow10x (getDigits t + dp) - 1 -- max допустимое значение v
-    minv = 0 - maxv
-chVal t (DecimalValue v d) _ = ["Value of the '" ++ getName t ++ "' can not be decimal."]
+    (ddd, e) = toDecimalDigits (abs sc)
+    n = length ddd
+    scAfter  = max 0 (n - e)             -- sc has digits after dot
+    scDigits = max scAfter (scAfter + e) -- sc has digits
+    scBefore = scDigits - scAfter        -- sc has digits before dot
+    tAfter   = getPrecision t             -- t has digits after dot
+    tDigits  = getDigits t                -- t has digits
+    tBefore  = tDigits - tAfter           -- t has digits after dot
+{-
+    0.1234E-2 = 0.001234 n=4 e=-2 digits=6 after=6 before=0 zeroes=0
+    0.1234E+0 = 0.1234   n=4 e=0  digits=4 after=4 before=0 zeroes=0
+    0.1234E+2 = 12.34    n=4 e=2  digits=4 after=2 before=2 zeroes=0
+    0.1234E+4 = 1234     n=4 e=4  digits=4 after=0 before=4 zeroes=0
+    0.1234E+6 = 123400   n=4 e=6  digits=6 after=0 before=6 zeroes=2
+-}
+chVal t (DecimalValue _) _ = ["Value of the '" ++ getName t ++ "' can not be decimal."]
 
 chVal t (IntValue v) IntKind
     | v > getMaxValue t = ["Value " ++ show v ++ " of the '" ++ getName t
@@ -92,7 +103,7 @@ chVal t (IntValue v) FloatKind
   where
     maxI = pow2x (getMantissa t) - 1
     minI = 0 - maxI
-chVal t (IntValue v) _ = ["Value of the '" ++ getName t ++ "' can not be integer."]
+chVal t (IntValue _) _ = ["Value of the '" ++ getName t ++ "' can not be integer."]
 
 
 

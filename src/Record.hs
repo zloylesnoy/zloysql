@@ -17,11 +17,11 @@ data Record = Record {
     record'fields  :: [Field]
 } deriving (Eq)
 
-record :: String -> [Field] -> Record
-record s flds = Record{
-    record'name    = s,
+record :: Record
+record = Record{
+    record'name    = "record",
     record'comment = [],
-    record'fields  = flds
+    record'fields  = []
 }
 
 instance Show Record where
@@ -57,14 +57,14 @@ fields :: [Field] -> Record -> Record
 fields flds r = r{ record'fields = flds }
 
 -- |Добавить поля без проверки на совпадение названий.
-addFields :: Record -> [Field] -> Record
-addFields r fs = r{ record'fields = old ++ fs } where old = record'fields r
+addFields :: [Field] -> Record -> Record
+addFields fs r = r{ record'fields = old ++ fs } where old = record'fields r
 
 -- |Добавить поле, если поля с таким названием не было в записи.
 joinField :: Record -> Field -> Record
 joinField r fld = if hasField r (getName fld)
     then r
-    else addFields r [fld]
+    else addFields [fld] r
 
 -- |Добавить те поля, названий которых не было в записи.
 joinFields :: Record -> [Field] -> Record
@@ -78,7 +78,7 @@ joinRecords r1 r2 = joinFields r1 (getFields r2)
 
 -- |Оставить в записи только поля с именами из списка в порядке, заданном списком.
 selectFromRecord :: [String] -> Record -> Record
-selectFromRecord names rc = record newName newFields
+selectFromRecord names rc = record #name newName #fields newFields
   where
     filterFieldsByName flds nm = filter (\fld -> getName fld == nm) flds
     newFields = concat $ map (filterFieldsByName $ getFields rc) names

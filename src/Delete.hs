@@ -18,7 +18,7 @@ delete :: Table -> Delete
 delete tab = Delete{
     delete'name    = "delete",
     delete'comment = [],
-    delete'params  = record "empty" [],
+    delete'params  = record,
     delete'table   = tab,
     delete'where   = ExprTrue
 }

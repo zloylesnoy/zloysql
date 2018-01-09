@@ -16,6 +16,7 @@
 ) where
 
 import qualified Data.Map.Strict as Map
+import Data.Scientific (Scientific)
 import Data.String.Utils (join)
 import Record
 import Value
@@ -26,13 +27,13 @@ data MyEngine = MYISAM | INNODB | MEMORY deriving (Show, Eq)
 
 -- |Таблица.
 data Table = Table {
-    table'name    :: String,   -- ^ Имя таблицы
-    table'comment :: [String], -- ^ Комментарий к таблице
-    table'record  :: Record,   -- ^ Структура записи таблицы
-    table'key     :: [String], -- ^ Имена полей, образующих первичный ключ
-    table'autokey :: Bool,     -- ^ Первичный ключ состоит из одной автоинкрементируемой колонки
-    table'engine  :: MyEngine, -- ^ Движок таблиц для MySQL
-    table'defs    :: Map.Map String Value -- ^ Значения полей по умолчанию
+    table'name    :: String,
+    table'comment :: [String],
+    table'record  :: Record,
+    table'key     :: [String], -- Primary key.
+    table'autokey :: Bool,     -- Primary key is one autoincremented column.
+    table'engine  :: MyEngine, -- Only for MySQL.
+    table'defs    :: Map.Map String Value -- Default values.
 } deriving (Eq)
 
 -- |Конструктор таблицы. Имя записи становится именем таблицы.
@@ -118,10 +119,9 @@ defaultInt s v = setDefaultValue (s, IntValue v)
 
 -- |Установить значение с фиксированной точкой по умолчанию.
 defaultDecimal :: String  -- ^ Имя поля.
-               -> Integer -- ^ Цифры значения по умолчанию.
-               -> Int     -- ^ Число знаков после запятой.
+               -> Scientific
                -> (Table -> Table)
-defaultDecimal s v p = setDefaultValue (s, DecimalValue v p)
+defaultDecimal s v = setDefaultValue (s, DecimalValue v)
 
 -- |Установить значение с плавающей точкой по умолчанию.
 defaultDouble :: String -- ^ Имя поля.
@@ -203,8 +203,11 @@ checkAutoDef t = if not (table'autokey t)
 
 -- |Возвращает запись, в которую помещается выбранный набор полей таблицы.
 selectedRecord :: Table -> [String] -> Record
-selectedRecord tab flds = record (getName tab ++ "_" ++ concat flds) (filter isSelected $ getFields tab)
-    where isSelected fld = elem (getName fld) flds
+selectedRecord tab flds = record
+    #name (getName tab ++ "_" ++ concat flds)
+    #fields (filter isSelected $ getFields tab)
+  where
+    isSelected fld = elem (getName fld) flds
 
 -- |Возвращает запись, в которую помещается первичный ключ таблицы.
 primaryKeyRecord :: Table -> Record

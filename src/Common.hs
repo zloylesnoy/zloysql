@@ -16,6 +16,7 @@
 import Text.Regex.Posix ((=~))
 import Data.String.Utils (join, split)
 import qualified Data.Set as Set
+import Data.Scientific (Scientific)
 
 
 --  Adds one comment line.
@@ -85,6 +86,26 @@ showDecimal digs prec = show d ++ "." ++ tail(show(one + m))
   where
     one = pow10x prec
     (d, m) = divMod digs one
+
+{-
+showScientific :: Sci.Scientific -> String
+showScientific sc = 
+  where
+    (ddd, e) = Sci.toDecimalDigits (abs sc)
+    n = length ddd -- digits
+    scAfter  = max 0 (n - e) -- digits after dot
+    scDigits = max scAfter (scAfter + e) -- digits with additional zeroes at the end
+    scBefore = scDigits - scAfter   -- digits before dot
+    scZeroes = max 0 (scBefore - n) -- add zeroes before dot
+-}
+{-
+    0.1234E-2 = 0.001234 n=4 e=-2 digits=6 after=6 before=0 zeroes=0
+    0.1234E+0 = 0.1234   n=4 e=0  digits=4 after=4 before=0 zeroes=0
+    0.1234E+2 = 12.34    n=4 e=2  digits=4 after=2 before=2 zeroes=0
+    0.1234E+4 = 1234     n=4 e=4  digits=4 after=0 before=4 zeroes=0
+    0.1234E+6 = 123400   n=4 e=6  digits=6 after=0 before=6 zeroes=2
+-}
+
 
 
 -- |Найти неуникальные имена.

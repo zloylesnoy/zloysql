@@ -24,6 +24,7 @@ dependencies:
 - regex-posix
 - containers
 - MissingH
+- scientific
 
 library:
   source-dirs: src

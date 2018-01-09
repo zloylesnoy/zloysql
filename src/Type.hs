@@ -24,7 +24,7 @@
 
     asSignedInteger,
     asUnsignedInteger,
-    asFloat, asFloat32, asFloat64, asFloat80,
+    asFloat, asFloat32, asFloat64,
     asDecimal, asDecimalInt,
 
     HasType, getType
@@ -541,10 +541,6 @@ asFloat32 it = asFloat it 24 8
 -- Можно ли хранить тип it как 64-битное число с плавающей точкой.
 asFloat64 :: Type -> Bool
 asFloat64 it = asFloat it 53 11
-
--- Можно ли хранить тип it как 80-битное число с плавающей точкой.
-asFloat80 :: Type -> Bool
-asFloat80 it = asFloat it 64 15
 
 -- Можно ли хранить тип it как десятичное с фиксированной точкой со знаком,
 -- имеющее dig цифр, из которых prec цифр после запятой.

@@ -609,7 +609,7 @@ select :: From -> Record -> Select
 select frm res = Select{
     select'name     = "select",
     select'comment  = [],
-    select'params   = record "empty" [],
+    select'params   = record,
     select'result   = res,
     select'binds    = Map.empty,
     select'from     = frm,

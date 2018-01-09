@@ -20,7 +20,7 @@ update :: Table -> Update
 update tab = Update{
     update'name    = "update",
     update'comment = [],
-    update'params  = record "empty" [],
+    update'params  = record,
     update'table   = tab,
     update'set     = [],
     update'where   = ExprTrue
