@@ -1,6 +1,7 @@
 ﻿module Common (
-    (//), (#),
-    Language (..), isSQL,
+    (//), (#), (<--),
+    Link(..),
+    DialectSQL (..),
     Order(..), orderFieldName,
 
     indent, indented,
@@ -8,9 +9,9 @@
     notUniques, goodId, goodIdWithDots,
     Errors,
 
-    HasCheck, check, checkLanguages,
+    HasCheck, check, checkAll,
     HasName, getName, name, getTitle, errorIn, checkName,
-    HasComment, getComment, comment, addComment, showComment
+    HasComment, getComment, comment, addComment, sqlComment
 ) where 
 
 import Text.Regex.Posix ((=~))
@@ -25,33 +26,25 @@ infixl 1 //
 infixl 1 #
 a # f = f a
 
--- |Programming languages for generated code.
-data Language
+data Link pa ch = Link {
+    link'parent :: pa,
+    link'child  :: ch
+}   deriving (Eq, Show)
+
+infix 2 <--
+(<--) :: pa -> ch -> Link pa ch
+(<--) = Link
+
+data DialectSQL
     = MySQL
     | MicrosoftSQL
     | PostgreSQL
-    | GoLang
-    | CSharp
-    | CLang
-    | CPlusPlus
     deriving (Eq)
 
-instance Show Language where
+instance Show DialectSQL where
     show MySQL        = "MySQL"
     show MicrosoftSQL = "Microsoft SQL"
     show PostgreSQL   = "PostgreSQL"
-    show GoLang       = "Go language"
-    show CSharp       = "C# language"
-    show CLang        = "C language"
-    show CPlusPlus    = "C++ language"
-
--- |Is this language a SQL dialect.
-isSQL :: Language -> Bool
-isSQL lang = case lang of
-    MySQL        -> True
-    MicrosoftSQL -> True
-    PostgreSQL   -> True
-    _            -> False
 
 
 -- |Sort order for ORDER BY, HAVING and INDEX.
@@ -140,11 +133,11 @@ entitleErrors title errors = title : map (indent ++) errors
 -- |Something we can check.
 class HasCheck it where
     -- |Check for one languages.
-    check :: Language -> it -> Errors
+    check :: DialectSQL -> it -> Errors
 
-    -- |Check for every language in list.
-    checkLanguages :: [Language] -> it -> Errors
-    checkLanguages langs x = concat $ map (checkL x) langs
+    -- |Check for every SQL dialect in list.
+    checkAll :: [DialectSQL] -> it -> Errors
+    checkAll langs x = concat $ map (checkL x) langs
       where
         checkL x lang = entitleErrors ("Code generation failed for " ++ show lang) (check lang x)
 
@@ -182,10 +175,9 @@ class HasComment it where
     (//) :: it -> String -> it
     (//) x s = addComment s x
 
-    -- |Generate code for comment.
-    showComment :: Language -> it -> String
-    showComment lang x = concat (map (\s -> prefix ++ s ++ "\n") (getComment x))
-        where prefix = if isSQL lang then "-- " else "// "
+    -- |Generate code for comment in SQL.
+    sqlComment :: it -> String
+    sqlComment x = concat (map (\s -> "--  " ++ s ++ "\n") $ getComment x)
 
 
 

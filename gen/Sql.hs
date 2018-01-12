@@ -1,25 +1,17 @@
 ﻿module Sql (
+    module Sch,
+    module SqlType,
+
     sqlCreate, sqlDrop, sqlQueries
 ) where
 
 import Data.String.Utils (join)
 
-import Common
-import Escape
-import Type
-import Value
-import Field
-import Table
-import Index
-import ForeignKey
-import Select
-import Delete
-import Update
-import Scheme
+import Sch
 import SqlType
 
 
-sqlDefaultValue :: Language -> Value -> String
+sqlDefaultValue :: DialectSQL -> Value -> String
 sqlDefaultValue lang (StringValue x) = escaped lang x
 sqlDefaultValue _ NullValue = "NULL"
 sqlDefaultValue _ (IntValue x) = show x
@@ -27,7 +19,7 @@ sqlDefaultValue _ (DoubleValue x) = show x
 sqlDefaultValue _ (DecimalValue x) = show x
 
 
-sqlTableField :: Language -> Table -> Field -> String
+sqlTableField :: DialectSQL -> Table -> Field -> String
 sqlTableField lang tab fld = case sqlTypeName lang (getType fld) isAutokey of
     Nothing -> error $ "Can not write SQL for " ++ getTitle fld ++ " in " ++ getTitle tab ++ "."
     Just tn -> indent ++ quotedId lang (getName fld) ++ " " ++ tn ++ defValue ++ ",\n"
@@ -41,7 +33,7 @@ sqlTableField lang tab fld = case sqlTypeName lang (getType fld) isAutokey of
 
 
 -- |SQL CREATE TABLE code generator.
-sqlCreateTable :: Language -> Table -> String
+sqlCreateTable :: DialectSQL -> Table -> String
 sqlCreateTable lang tab = s0 ++ concat ss ++ pk ++ eng
   where
     s0 = "CREATE TABLE "
@@ -58,12 +50,12 @@ sqlCreateTable lang tab = s0 ++ concat ss ++ pk ++ eng
 
 
 -- |SQL DROP TABLE code generator.
-sqlDropTable :: Language -> Table -> String
+sqlDropTable :: DialectSQL -> Table -> String
 sqlDropTable lang tab = "DROP TABLE " ++ quotedId lang (getName tab)
 
 
 -- |SQL CREATE INDEX code generator.
-sqlCreateIndex :: Language -> Index -> String
+sqlCreateIndex :: DialectSQL -> Index -> String
 sqlCreateIndex lang idx = create
     ++ quotedId lang (getName idx)
     ++ " ON "
@@ -85,7 +77,7 @@ sqlCreateIndex lang idx = create
 
 
 -- |SQL FOREIGN KEY code generator.
-sqlCreateFKey :: Language -> ForeignKey -> String
+sqlCreateFKey :: DialectSQL -> ForeignKey -> String
 sqlCreateFKey lang fkey = "ALTER TABLE "
     ++ quotedId lang (getName $ getChildTable fkey)
     ++ " ADD CONSTRAINT "
@@ -109,7 +101,7 @@ sqlCreateFKey lang fkey = "ALTER TABLE "
 
 
 -- |SQL DELETE code generator.
-sqlDelete :: Language -> Delete -> String
+sqlDelete :: DialectSQL -> Delete -> String
 sqlDelete lang del = "DELETE FROM " ++ sFrom ++ sWhere
   where
     sFrom  = quotedId lang $ getName $ getTable del
@@ -118,7 +110,7 @@ sqlDelete lang del = "DELETE FROM " ++ sFrom ++ sWhere
 
 
 -- |SQL UPDATE code generator.
-sqlUpdate :: Language -> Update -> String
+sqlUpdate :: DialectSQL -> Update -> String
 sqlUpdate lang upd = "UPDATE " ++ sTable ++ " SET\n  " ++ sSet ++ sWhere
   where
     sTable = quotedId lang $ getName $ getTable upd
@@ -129,7 +121,7 @@ sqlUpdate lang upd = "UPDATE " ++ sTable ++ " SET\n  " ++ sSet ++ sWhere
 
 -- |Returns sequence of the SQL operators to create all tables and
 --  constraints for database scheme. Scheme must be checked.
-sqlCreate :: Language -> Scheme -> [String]
+sqlCreate :: DialectSQL -> Scheme -> [String]
 sqlCreate lang sch = map (sqlCreateTable lang) (getTables sch)
     ++ map (sqlCreateIndex lang) (getIndexes sch)
     ++ map (sqlCreateFKey  lang) (getForeignKeys sch)
@@ -137,12 +129,12 @@ sqlCreate lang sch = map (sqlCreateTable lang) (getTables sch)
 
 -- |Returns sequence of the SQL operators to delete all tables and
 --  constraints for database scheme. Scheme must be checked.
-sqlDrop :: Language -> Scheme -> [String]
+sqlDrop :: DialectSQL -> Scheme -> [String]
 sqlDrop lang sch = reverse $ map (sqlDropTable lang) (getTables sch)
 
 
 -- |Returns set of the SQL operators defined in database scheme.
-sqlQueries :: Language -> Scheme -> [String]
+sqlQueries :: DialectSQL -> Scheme -> [String]
 sqlQueries lang sch = map (sqlSelect lang) (getSelects sch)
     ++ map (sqlDelete lang) (getDeletes sch)
     ++ map (sqlUpdate lang) (getUpdates sch)

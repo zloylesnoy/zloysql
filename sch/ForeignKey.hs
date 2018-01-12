@@ -52,13 +52,13 @@ data ForeignKey = ForeignKey {
     fkey'comment  :: [String], -- ^ Комментарий к ограничению.
     fkey'parent   :: Table,    -- ^ Таблица, на которую ссылаются. 
     fkey'child    :: Table,    -- ^ Таблица, которая содержит ссылку.
-    fkey'fields   :: [(String, String)], -- ^ Имена полей (parent, child).
-    fkey'onDelete :: ForeignKeyAction,   -- ^ Действие при удалении родительской записи.
-    fkey'onUpdate :: ForeignKeyAction    -- ^ Действие при изменении родительской записи.
+    fkey'fields   :: [Link String String], -- ^ Имена полей [Link parent child].
+    fkey'onDelete :: ForeignKeyAction,     -- ^ Действие при удалении родительской записи.
+    fkey'onUpdate :: ForeignKeyAction      -- ^ Действие при изменении родительской записи.
 } deriving (Eq)
 
-foreignKey :: Table -> Table -> [(String, String)] -> ForeignKey
-foreignKey parent child flds = ForeignKey{
+foreignKey :: Link Table Table -> [Link String String] -> ForeignKey
+foreignKey (Link parent child) flds = ForeignKey{
     fkey'name     = "",
     fkey'comment  = [],
     fkey'parent   = parent,
@@ -75,10 +75,10 @@ getChildTable :: ForeignKey -> Table
 getChildTable = fkey'child
 
 getParentFields :: ForeignKey -> [String]
-getParentFields fkey = map fst (fkey'fields fkey)
+getParentFields fkey = map link'parent (fkey'fields fkey)
 
 getChildFields :: ForeignKey -> [String]
-getChildFields fkey = map snd (fkey'fields fkey)
+getChildFields fkey = map link'child (fkey'fields fkey)
 
 
 onDelete :: ForeignKeyAction -> ForeignKey -> ForeignKey
@@ -97,7 +97,7 @@ getOnUpdate = fkey'onUpdate
 
 instance Show ForeignKey where
     show x = "ForeignKey " ++ show (getName x) ++ " {\n"
-        ++ showComment CLang x
+        ++ sqlComment x
         ++ indent ++ "Parent = " ++ getName (getParentTable x) ++ "\n"
         ++ indent ++ "Child  = " ++ getName (getChildTable x) ++ "\n"
         ++ indented ("Fields = [\n" ++ indented sFields ++ "\n]") ++ "\n"
@@ -131,8 +131,8 @@ checkFields fkey
     | otherwise              = concat
         (map (checkTypes fkey) (fkey'fields fkey)) -- совпадают ли типы
   where
-    parentFields = map fst (fkey'fields fkey)
-    childFields  = map snd (fkey'fields fkey)
+    parentFields = map link'parent (fkey'fields fkey)
+    childFields  = map link'child  (fkey'fields fkey)
     parentDups = notUniques parentFields
     childDups  = notUniques childFields
     dupMsg = (\s -> "Duplicate '" ++ s ++ "' field in foreign key.")
@@ -146,8 +146,8 @@ fkeyFieldType fkey tab fieldName = case getField fieldName tab of
 -- Проверяем типы на равенство.
 -- Имена типов и комментарии могут не совпадать.
 -- Насчёт nullable не уверен. 
-checkTypes :: ForeignKey -> (String, String) -> Errors
-checkTypes fkey (par, chd) = case (parT, chdT) of
+checkTypes :: ForeignKey -> (Link String String) -> Errors
+checkTypes fkey (Link par chd) = case (parT, chdT) of
     (Nothing, _) -> ["Field '" ++ par ++ "' not found in parent table."]
     (_, Nothing) -> ["Field '" ++ chd ++ "' not found in child table."]
     (Just pt, Just ct) -> if pt == ct then []

@@ -40,7 +40,7 @@ deleteBy tab flds = delete tab
 
 instance Show Delete where
     show x = "Delete " ++ show (getName x) ++ " {\n"
-        ++ showComment CLang x
+        ++ sqlComment x
         ++ indent ++ "Params = '" ++ getName (delete'params x) ++ "'\n"
         ++ indented ("Table = " ++ show (getName $ delete'table x)) ++ "\n"
         ++ indented ("Where = " ++ show (delete'where x)) ++ "\n"

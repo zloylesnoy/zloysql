@@ -26,7 +26,7 @@ record = Record{
 
 instance Show Record where
     show x = "Record " ++ show (getName x) ++ " {\n"
-        ++ showComment CLang x
+        ++ sqlComment x
         ++ indented ("Fields = [\n" ++ indented sFields ++ "\n]")
         ++ "\n}"
       where
@@ -41,7 +41,7 @@ instance HasComment Record where
     comment ss r = r{ record'comment = ss }
     getComment = record'comment
 
-checkFields :: Language -> Record -> Errors
+checkFields :: DialectSQL -> Record -> Errors
 checkFields lang it = foldr (\f ss -> ss ++ check lang f) [] (record'fields it) ++
     map errMsg (notUniques $ map getName $ record'fields it)
       where

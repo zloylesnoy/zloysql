@@ -24,7 +24,7 @@ field t = Field{
 
 instance Show Field where
     show x = "Field " ++ show (getName x) ++ " {\n"
-        ++ showComment CLang x
+        ++ sqlComment x
         ++ indent ++ "Type = " ++ getName (field'type x)
         ++ "\n}"
 

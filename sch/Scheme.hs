@@ -60,7 +60,7 @@ showItems sch items tag = indented s2
 
 instance Show Scheme where
     show x = "Scheme " ++ show (getName x) ++ " {\n"
-        ++ showComment CLang x
+        ++ sqlComment x
         ++ showItems x scheme'types   "Types"
         ++ showItems x scheme'records "Records"
         ++ showItems x scheme'tables  "Tables"
@@ -213,7 +213,7 @@ instance SchemeAdd Update where
 
 
 -- |Проверить список элементов схемы.
-checkItems :: (HasName a, HasCheck a) => Language -> [a] -> Errors
+checkItems :: (HasName a, HasCheck a) => DialectSQL -> [a] -> Errors
 checkItems lang ls = foldr (\f ss -> ss ++ check lang f) [] ls
     ++ map errmsg (notUniques $ map getName $ ls)
       where

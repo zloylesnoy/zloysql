@@ -50,7 +50,7 @@ table r = Table {
 
 instance Show Table where
     show x = "Table " ++ show (getName x) ++ " {\n"
-        ++ showComment CLang x
+        ++ sqlComment x
         ++ indent ++ k ++ show (table'key x) ++ "\n"
         ++ indent ++ "Engine = " ++ show (table'engine x) ++ "\n"
         ++ indented ("Defaults = [" ++ sDefs) ++ "]\n"

@@ -64,7 +64,7 @@ getOrder = index'order
 instance Show Index where
     show x = "Index " ++ show (getName x) ++ " {\n"
         ++ sKind
-        ++ showComment CLang x
+        ++ sqlComment x
         ++ indented ("Fields = [\n" ++ indented sFields ++ "\n]") ++ "\n"
         ++ indent ++ "Table = " ++ getName (index'table x) ++ "\n"
         ++ "}"

@@ -20,7 +20,7 @@ maxUtf8Size Ucs2  = 3
 
 -- |Генерировать название строкового типа на указанном языке.
 --  Последний параметр - это длина строки в символах.
-stringTypeName :: Language -> Prefer -> Encoding -> Integer -> Maybe String
+stringTypeName :: DialectSQL -> Prefer -> Encoding -> Integer -> Maybe String
 
 -- Реализация для MicrosoftSQL.
 -- Типы данных TEXT и NTEXT устарели и мы не будем их использовать.
@@ -92,7 +92,7 @@ stringTypeName PostgreSQL p enc n =
     pgMaxStringSize = pow2x 30
 
 
-sqlTypeName :: Language -> Type -> Bool -> Maybe String
+sqlTypeName :: DialectSQL -> Type -> Bool -> Maybe String
 
 -- Реализация для MicrosoftSQL.
 

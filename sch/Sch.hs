@@ -1,4 +1,4 @@
-﻿module Library (
+﻿module Sch (
     module Common,
     module Escape,
     module Type,
@@ -12,9 +12,7 @@
     module Select,
     module Delete,
     module Update,
-    module Scheme,
-    module SqlType,
-    module Sql
+    module Scheme
 ) where
 
 import Common
@@ -31,8 +29,7 @@ import Select
 import Delete
 import Update
 import Scheme
-import SqlType
-import Sql
+
 
 
 

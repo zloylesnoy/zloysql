@@ -1,10 +1,10 @@
 module Main where
 
-import Library
+import Sql
 import Sp
 
 
-sqls :: Scheme -> Language -> String
+sqls :: Scheme -> DialectSQL -> String
 sqls sch lang = case check lang sch of
     [] -> concat $ map (\s -> s ++ "\n\n") (sqlCreate lang sch ++ sqlDrop lang sch ++ sqlQueries lang sch)
     _  -> concat $ map (\s -> s ++ "\n"  ) (check lang sch)
@@ -15,6 +15,7 @@ main = do
     writeFile "_mysql.txt" (sqls spScheme MySQL)
     writeFile "_mssql.txt" (sqls spScheme MicrosoftSQL)
     writeFile "_pgsql.txt" (sqls spScheme PostgreSQL)
+
 
 
 

@@ -130,7 +130,7 @@ data Type = Type {
 instance Show Type where
     show x = "Type " ++ show (getName x) ++ " {\n"
         ++ sKind
-        ++ showComment CLang x
+        ++ sqlComment x
         ++ sNullable
         ++ sCastTo
         ++ sMinValue

@@ -480,7 +480,7 @@ simplify expr = case expr of
     exprBool True  = ExprTrue
     exprBool False = ExprFalse
 
-sqlExpr :: Language -> Expression -> String
+sqlExpr :: DialectSQL -> Expression -> String
 sqlExpr lang expr = case simplify expr of
 
     ExprNull  -> "NULL"
@@ -581,7 +581,7 @@ data Select = Select {
 
 instance Show Select where
     show x = "Select " ++ show (getName x) ++ " {\n"
-        ++ showComment CLang x
+        ++ sqlComment x
         ++ indent ++ "Params = '" ++ getName (select'params x) ++ "'\n"
         ++ indent ++ "Result = '" ++ getName (select'result x) ++ "'\n"
         ++ indented ("Binds = [" ++ sBinds (Map.toList $ select'binds x)) ++ "]\n"
@@ -648,9 +648,11 @@ getResult :: Select -> Record
 getResult = select'result
 
 
-bind :: (String, Expression) -> Select -> Select
-bind (fld, expr) sel = sel { select'binds = Map.insert fld expr old }
+bind :: [Link String Expression] -> Select -> Select
+bind [] sel = sel
+bind [Link fld expr] sel = sel { select'binds = Map.insert fld expr old }
   where old = select'binds sel
+bind (x:xs) sel = sel #bind [x] #bind xs
 
 getBinds :: Select -> Map.Map String Expression
 getBinds = select'binds
@@ -777,7 +779,7 @@ returnOnly xs sel = sel{ select'result = sr }
 
 
 -- | Возвращает секцию LIMIT ... OFFSET ... оператора SQL SELECT.
-sqlLimit :: Language -> Expression -> Expression -> String
+sqlLimit :: DialectSQL -> Expression -> Expression -> String
 
 sqlLimit MySQL lim ofs = if (ofs == ExprIntegerConst 0) && (lim == ExprNull) then ""
     -- [LIMIT row_count OFFSET offset]
@@ -800,17 +802,17 @@ sqlLimit PostgreSQL lim ofs = limit ++ ofset
         else "\nOFFSET " ++ sqlExpr PostgreSQL ofs
 
 
-sqlOrder :: Language -> Order -> String
+sqlOrder :: DialectSQL -> Order -> String
 sqlOrder lang (Asc  fld) = quotedId lang fld ++ " ASC"
 sqlOrder lang (Desc fld) = quotedId lang fld ++ " DESC"
 
-sqlOrders :: Language -> String -> [Order] -> String
+sqlOrders :: DialectSQL -> String -> [Order] -> String
 sqlOrders _ _ []      = ""
 sqlOrders lang hdr xs = hdr ++ join ", " (map (sqlOrder lang) xs)
 
 
 -- | Возвращает секцию SELECT ... FROM оператора SQL SELECT.
-sqlSelectResult :: Language -> Select -> Field -> String
+sqlSelectResult :: DialectSQL -> Select -> Field -> String
 sqlSelectResult lang sel fld = case fldExpr of
     -- Nothing   -> error "Field not found in select'binds"
     Nothing   -> quotedId lang fldName
@@ -820,13 +822,13 @@ sqlSelectResult lang sel fld = case fldExpr of
     fldExpr = Map.lookup fldName (select'binds sel) -- :: Maybe Expression
 
 
-sqlOn :: Language -> Expression -> String
+sqlOn :: DialectSQL -> Expression -> String
 sqlOn _ ExprTrue = ""
 sqlOn lang expr  = " ON " ++ sqlExpr lang expr
 
 
 -- | Возвращает секцию FROM ... оператора SQL SELECT.
-sqlFrom :: Language -> From -> String
+sqlFrom :: DialectSQL -> From -> String
 
 sqlFrom lang (FromAs alias frm) = sqlFrom lang frm ++ " AS " ++ quotedId lang alias
 
@@ -847,7 +849,7 @@ sqlFrom lang (FromSelect sel) = sqlSelect lang sel
 
 
 -- |Возвращает оператор SQL SELECT.
-sqlSelect :: Language -> Select -> String
+sqlSelect :: DialectSQL -> Select -> String
 sqlSelect lang sel = "SELECT" ++ sDistinct ++ "\n  " ++ sResult ++ "\nFROM " ++ sFrom
     ++ sWhere ++ sGroupBy ++ sHaving ++ sOrderBy ++ sLimit
   where

@@ -34,7 +34,7 @@ update tab = Update{
 
 instance Show Update where
     show x = "Update " ++ show (getName x) ++ " {\n"
-        ++ showComment CLang x
+        ++ sqlComment x
         ++ indent ++ "Params = '" ++ getName (update'params x) ++ "'\n"
         ++ indented ("Table = " ++ show (getName $ update'table x)) ++ "\n"
         ++ indented ("Set = [" ++ sSets) ++ "]\n"

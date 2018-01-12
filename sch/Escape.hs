@@ -10,19 +10,19 @@ import Common
 
 
 -- |Quote identifier. Identifier must be goodId.
-quotedId :: Language -> String -> String
+quotedId :: DialectSQL -> String -> String
 quotedId lang id = case lang of
     MySQL        -> "`"  ++ id ++ "`"
     MicrosoftSQL -> "\"" ++ id ++ "\""
     PostgreSQL   -> "\"" ++ id ++ "\""
 
 -- |List of quoted identifiers. Identifiers must be goodId.
-quotedIds :: Language -> [String] -> String
+quotedIds :: DialectSQL -> [String] -> String
 quotedIds lang ids = join ", " (map (quotedId lang) ids)
 
 
 -- |Quote string using escape-secuences.
-escaped :: Language -> String -> String
+escaped :: DialectSQL -> String -> String
 
 escaped MySQL s = "'" ++ myEscaped s ++ "'"
 
