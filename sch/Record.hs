@@ -15,7 +15,7 @@ data Record = Record {
     record'name    :: String,
     record'comment :: [String],
     record'fields  :: [Field]
-} deriving (Eq)
+} deriving (Eq, Show)
 
 record :: Record
 record = Record{
@@ -24,13 +24,13 @@ record = Record{
     record'fields  = []
 }
 
-instance Show Record where
-    show x = "Record " ++ show (getName x) ++ " {\n"
-        ++ sqlComment x
+instance ToText Record where
+    toText x = "Record " ++ show (getName x) ++ " {\n"
+        ++ showComment x
         ++ indented ("Fields = [\n" ++ indented sFields ++ "\n]")
         ++ "\n}"
       where
-        sFields = join ",\n" $ map show (record'fields x)
+        sFields = join ",\n" $ map toText (record'fields x)
 
 instance HasName Record where
     name s r = r{ record'name = s }

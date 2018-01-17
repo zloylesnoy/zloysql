@@ -35,10 +35,10 @@ data ForeignKeyAction
     -- |Не поддерживается MySQL.
     | SetDefault
 
-    deriving (Eq)
+    deriving (Eq, Show)
 
-instance Show ForeignKeyAction where
-    show x = case x of
+instance ToText ForeignKeyAction where
+    toText x = case x of
         NoAction   -> "NO ACTION"
         Cascade    -> "CASCADE"
         SetNull    -> "SET NULL"
@@ -55,7 +55,7 @@ data ForeignKey = ForeignKey {
     fkey'fields   :: [Link String String], -- ^ Имена полей [Link parent child].
     fkey'onDelete :: ForeignKeyAction,     -- ^ Действие при удалении родительской записи.
     fkey'onUpdate :: ForeignKeyAction      -- ^ Действие при изменении родительской записи.
-} deriving (Eq)
+} deriving (Eq, Show)
 
 foreignKey :: Link Table Table -> [Link String String] -> ForeignKey
 foreignKey (Link parent child) flds = ForeignKey{
@@ -95,17 +95,17 @@ getOnUpdate :: ForeignKey -> ForeignKeyAction
 getOnUpdate = fkey'onUpdate
 
 
-instance Show ForeignKey where
-    show x = "ForeignKey " ++ show (getName x) ++ " {\n"
-        ++ sqlComment x
+instance ToText ForeignKey where
+    toText x = "ForeignKey " ++ show (getName x) ++ " {\n"
+        ++ showComment x
         ++ indent ++ "Parent = " ++ getName (getParentTable x) ++ "\n"
         ++ indent ++ "Child  = " ++ getName (getChildTable x) ++ "\n"
         ++ indented ("Fields = [\n" ++ indented sFields ++ "\n]") ++ "\n"
-        ++ indented ("OnDelete = " ++ show (fkey'onDelete x)) ++ "\n"
-        ++ indented ("OnUpdate = " ++ show (fkey'onUpdate x)) ++ "\n"
+        ++ indented ("OnDelete = " ++ toText (fkey'onDelete x)) ++ "\n"
+        ++ indented ("OnUpdate = " ++ toText (fkey'onUpdate x)) ++ "\n"
         ++ "}"
       where
-        sFields = join ",\n" $ map show (fkey'fields x)
+        sFields = join ",\n" $ map toText (fkey'fields x)
 
 instance HasName ForeignKey where
     name s it = it{ fkey'name = s }

@@ -1,5 +1,5 @@
 ﻿module Delete (
-    Delete, delete, deleteAll, deleteBy
+    Delete, delete, deleteAll, deleteBy, deleteByKey
 ) where
 
 import Common
@@ -15,7 +15,7 @@ data Delete = Delete {
     delete'params  :: Record,
     delete'table   :: Table,
     delete'where   :: Expression
-}   deriving (Eq)
+}   deriving (Eq, Show)
 
 delete :: Table -> Delete
 delete tab = Delete{
@@ -36,14 +36,20 @@ deleteBy :: Table -> [String] -> Delete
 deleteBy tab [] = deleteAll tab
 deleteBy tab flds = delete tab
     #where_ (whereGiven tab flds)
-    -- TODO #params
+    #params (selectFromRecord flds $ getRecord tab)
 
-instance Show Delete where
-    show x = "Delete " ++ show (getName x) ++ " {\n"
-        ++ sqlComment x
+deleteByKey :: Table -> Delete
+deleteByKey tab = deleteBy tab (getKey tab)
+    #params  (primaryKeyRecord tab)
+    #name    ("deleteByKey_" ++ getName tab)
+    #comment ["Delete records from table '" ++ getName tab ++ "' by primary key."]
+
+instance ToText Delete where
+    toText x = "Delete " ++ show (getName x) ++ " {\n"
+        ++ showComment x
         ++ indent ++ "Params = '" ++ getName (delete'params x) ++ "'\n"
         ++ indented ("Table = " ++ show (getName $ delete'table x)) ++ "\n"
-        ++ indented ("Where = " ++ show (delete'where x)) ++ "\n"
+        ++ indented ("Where = " ++ toText (delete'where x)) ++ "\n"
         ++ "}"
 
 instance HasName Delete where

@@ -125,12 +125,12 @@ data Type = Type {
     -- |Only for StringKind.
     --  Maximum string length in characters.
     type'strlen    :: Maybe Integer
-}   deriving (Eq)
+}   deriving (Eq, Show)
 
-instance Show Type where
-    show x = "Type " ++ show (getName x) ++ " {\n"
+instance ToText Type where
+    toText x = "Type " ++ show (getName x) ++ " {\n"
         ++ sKind
-        ++ sqlComment x
+        ++ showComment x
         ++ sNullable
         ++ sCastTo
         ++ sMinValue

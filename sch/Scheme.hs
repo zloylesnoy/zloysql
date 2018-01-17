@@ -34,11 +34,11 @@ data Scheme = Scheme {
     scheme'deletes :: [Delete],
     scheme'updates :: [Update],
     scheme'errors  :: Errors
-}
+}   deriving (Eq, Show)
 
-scheme :: String -> Scheme
-scheme s = Scheme{
-    scheme'name    = s,
+scheme :: Scheme
+scheme = Scheme{
+    scheme'name    = "db",
     scheme'comment = [],
     scheme'types   = [],
     scheme'records = [],
@@ -52,23 +52,23 @@ scheme s = Scheme{
 }
 
 -- |Преобразовать в строку список элементов схемы типа a.
-showItems :: Show a => Scheme -> (Scheme -> [a]) -> String -> String
-showItems sch items tag = indented s2
+itemsToText :: ToText a => Scheme -> (Scheme -> [a]) -> String -> String
+itemsToText sch items tag = indented s2
   where
-    s1 = join ",\n" $ map show (items sch)
+    s1 = join ",\n" $ map toText (items sch)
     s2 = "\n" ++ tag ++ " = [\n"  ++ indented s1 ++ "\n]\n"
 
-instance Show Scheme where
-    show x = "Scheme " ++ show (getName x) ++ " {\n"
-        ++ sqlComment x
-        ++ showItems x scheme'types   "Types"
-        ++ showItems x scheme'records "Records"
-        ++ showItems x scheme'tables  "Tables"
-        ++ showItems x scheme'indexes "Indexes"
-        ++ showItems x scheme'fkeys   "ForeignKeys"
-        ++ showItems x scheme'selects "Selects"
-        ++ showItems x scheme'deletes "Deletes"
-        ++ showItems x scheme'updates "Updates"
+instance ToText Scheme where
+    toText x = "Scheme " ++ show (getName x) ++ " {\n"
+        ++ showComment x
+        ++ itemsToText x scheme'types   "Types"
+        ++ itemsToText x scheme'records "Records"
+        ++ itemsToText x scheme'tables  "Tables"
+        ++ itemsToText x scheme'indexes "Indexes"
+        ++ itemsToText x scheme'fkeys   "ForeignKeys"
+        ++ itemsToText x scheme'selects "Selects"
+        ++ itemsToText x scheme'deletes "Deletes"
+        ++ itemsToText x scheme'updates "Updates"
         ++ "Errors = [\n" ++ indented (indented sErrors  ++ "\n]\n")
         ++ "\n}"
       where

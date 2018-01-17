@@ -34,7 +34,7 @@ data Table = Table {
     table'autokey :: Bool,     -- Primary key is one autoincremented column.
     table'engine  :: MyEngine, -- Only for MySQL.
     table'defs    :: Map.Map String Value -- Default values.
-} deriving (Eq)
+} deriving (Eq, Show)
 
 -- |Конструктор таблицы. Имя записи становится именем таблицы.
 table :: Record -> Table
@@ -48,9 +48,9 @@ table r = Table {
     table'defs    = Map.empty
 }
 
-instance Show Table where
-    show x = "Table " ++ show (getName x) ++ " {\n"
-        ++ sqlComment x
+instance ToText Table where
+    toText x = "Table " ++ show (getName x) ++ " {\n"
+        ++ showComment x
         ++ indent ++ k ++ show (table'key x) ++ "\n"
         ++ indent ++ "Engine = " ++ show (table'engine x) ++ "\n"
         ++ indented ("Defaults = [" ++ sDefs) ++ "]\n"

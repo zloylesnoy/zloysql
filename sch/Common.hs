@@ -11,7 +11,8 @@
 
     HasCheck, check, checkAll,
     HasName, getName, name, getTitle, errorIn, checkName,
-    HasComment, getComment, comment, addComment, sqlComment
+    HasComment, getComment, comment, addComment, cppComment, showComment,
+    ToText, toText
 ) where 
 
 import Text.Regex.Posix ((=~))
@@ -31,6 +32,9 @@ data Link pa ch = Link {
     link'child  :: ch
 }   deriving (Eq, Show)
 
+instance (Show pa, Show ch) => ToText (Link pa ch) where
+    toText (Link parent child) = show parent ++ " <-- " ++ show child
+
 infix 2 <--
 (<--) :: pa -> ch -> Link pa ch
 (<--) = Link
@@ -39,12 +43,13 @@ data DialectSQL
     = MySQL
     | MicrosoftSQL
     | PostgreSQL
-    deriving (Eq)
-
+    deriving (Eq, Show)
+{-
 instance Show DialectSQL where
     show MySQL        = "MySQL"
-    show MicrosoftSQL = "Microsoft SQL"
+    show MicrosoftSQL = "MicrosoftSQL"
     show PostgreSQL   = "PostgreSQL"
+-}
 
 
 -- |Sort order for ORDER BY, HAVING and INDEX.
@@ -175,11 +180,15 @@ class HasComment it where
     (//) :: it -> String -> it
     (//) x s = addComment s x
 
-    -- |Generate code for comment in SQL.
-    sqlComment :: it -> String
-    sqlComment x = concat (map (\s -> "--  " ++ s ++ "\n") $ getComment x)
+    -- |Generate code for comment in C++/C#/Go.
+    cppComment :: it -> [String]
+    cppComment x = map (\s -> "//  " ++ s) $ getComment x
 
+    showComment :: it -> String
+    showComment x = concat (map (\s -> indent ++ "//  " ++ s ++ "\n") $ getComment x)
 
+class ToText it where
+    toText :: it -> String
 
 
 

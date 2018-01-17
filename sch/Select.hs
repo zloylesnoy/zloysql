@@ -10,7 +10,7 @@
     (.==.*), (.!=.*), (.<.*), (.>.*), (.<=.*), (.>=.*),
 
     From (..), Select, select,
-    HasParams, params, getParams,
+    HasParams, params, getParams, nameParams,
     getFrom,
     HasWhere, where_, getWhere, notWhere, andWhere, orWhere,
     getResult,
@@ -157,25 +157,25 @@ data Expression
     --  Первый параметр должен быть ExprField.
     | ExprSet Expression Expression
 
-    deriving (Eq)
+    deriving (Eq, Show)
 
-instance Show Expression where
-    show ExprNull = "NULL"
-    show ExprFalse = "FALSE"
-    show ExprTrue = "TRUE"
-    show (ExprIntegerConst x) = show x
-    show (ExprDoubleConst x) = show x
-    show (ExprDecimalConst digs prec) = showDecimal digs prec
-    show (ExprStringConst x) = show x
-    show (ExprUnary oper e1) = "(" ++ oper ++ show e1 ++ ")"
-    show (ExprBinary e1 oper e2) = "(" ++ show e1 ++ " " ++ oper ++ " " ++ show e2 ++ ")"
-    show (ExprParam nm tp) = "{$" ++ nm ++ "::" ++ getName tp ++ "}"
-    show (ExprField tab nm) = getName tab ++ "." ++ nm
-    show (ExprSelect sel) = "(\n" ++ show sel ++ "\n)"
-    show (ExprOuter alias nm tp) = "{^" ++ alias ++ "." ++ nm ++ "::" ++ getName tp ++ "}"
-    show (ExprJoinUsing xs) = "{USING " ++ show xs ++ "}"
-    show ExprDefault = "DEFAULT"
-    show (ExprSet var val) = show var ++ " = " ++ show val
+instance ToText Expression where
+    toText ExprNull = "NULL"
+    toText ExprFalse = "FALSE"
+    toText ExprTrue = "TRUE"
+    toText (ExprIntegerConst x) = show x
+    toText (ExprDoubleConst x) = show x
+    toText (ExprDecimalConst digs prec) = showDecimal digs prec
+    toText (ExprStringConst x) = show x
+    toText (ExprUnary oper e1) = "(" ++ oper ++ toText e1 ++ ")"
+    toText (ExprBinary e1 oper e2) = "(" ++ toText e1 ++ " " ++ oper ++ " " ++ toText e2 ++ ")"
+    toText (ExprParam nm tp) = "{$" ++ nm ++ "::" ++ getName tp ++ "}"
+    toText (ExprField tab nm) = getName tab ++ "." ++ nm
+    toText (ExprSelect sel) = "(\n" ++ toText sel ++ "\n)"
+    toText (ExprOuter alias nm tp) = "{^" ++ alias ++ "." ++ nm ++ "::" ++ getName tp ++ "}"
+    toText (ExprJoinUsing xs) = "{USING " ++ show xs ++ "}"
+    toText ExprDefault = "DEFAULT"
+    toText (ExprSet var val) = toText var ++ " = " ++ toText val
 
 instance HasTables Expression where
     innerTables expr = case expr of
@@ -532,16 +532,16 @@ data From
     | LeftJoin  From From Expression
     | RightJoin From From Expression
     | FromSelect Select
-    deriving (Eq)
+    deriving (Eq, Show)
 
-instance Show From where
-    show (FromAs alias f) = "FromAs '" ++ alias ++ "' {\n" ++ indented (show f) ++ "\n}"
-    show (FromTable tab) = "FromTable '" ++ getName tab ++ "'"
-    show (CrossJoin f1 f2) = "CrossJoin {" ++ show f1 ++ " * " ++ show f2 ++ "}"
-    show (InnerJoin f1 f2 expr) = "InnerJoin {" ++ show f1 ++ " * " ++ show f2 ++ " ON " ++ show expr ++ "}"
-    show (LeftJoin  f1 f2 expr) = "LeftJoin {"  ++ show f1 ++ " * " ++ show f2 ++ " ON " ++ show expr ++ "}"
-    show (RightJoin f1 f2 expr) = "RightJoin {" ++ show f1 ++ " * " ++ show f2 ++ " ON " ++ show expr ++ "}"
-    show (FromSelect sel) = "FromSelect {\n" ++ show sel ++ "\n}"
+instance ToText From where
+    toText (FromAs alias f) = "FromAs '" ++ alias ++ "' {\n" ++ indented (toText f) ++ "\n}"
+    toText (FromTable tab) = "FromTable '" ++ getName tab ++ "'"
+    toText (CrossJoin f1 f2) = "CrossJoin {" ++ toText f1 ++ " * " ++ toText f2 ++ "}"
+    toText (InnerJoin f1 f2 expr) = "InnerJoin {" ++ toText f1 ++ " * " ++ toText f2 ++ " ON " ++ toText expr ++ "}"
+    toText (LeftJoin  f1 f2 expr) = "LeftJoin {"  ++ toText f1 ++ " * " ++ toText f2 ++ " ON " ++ toText expr ++ "}"
+    toText (RightJoin f1 f2 expr) = "RightJoin {" ++ toText f1 ++ " * " ++ toText f2 ++ " ON " ++ toText expr ++ "}"
+    toText (FromSelect sel) = "FromSelect {\n" ++ toText sel ++ "\n}"
 
 instance HasTables From where
     innerTables f = case f of
@@ -577,21 +577,21 @@ data Select = Select {
     select'orderBy  :: [Order],
     select'limit    :: Expression, -- NULL, если нет предела
     select'offset   :: Expression  -- 0, если нет смещения
-}   deriving (Eq)
+}   deriving (Eq, Show)
 
-instance Show Select where
-    show x = "Select " ++ show (getName x) ++ " {\n"
-        ++ sqlComment x
+instance ToText Select where
+    toText x = "Select " ++ show (getName x) ++ " {\n"
+        ++ showComment x
         ++ indent ++ "Params = '" ++ getName (select'params x) ++ "'\n"
         ++ indent ++ "Result = '" ++ getName (select'result x) ++ "'\n"
-        ++ indented ("Binds = [" ++ sBinds (Map.toList $ select'binds x)) ++ "]\n"
-        ++ indented ("From = " ++ show (select'from x)) ++ "\n"
-        ++ indented ("Where = " ++ show (select'where x)) ++ "\n"
+        ++ indented ("Binds = [\n" ++ Map.foldlWithKey' bindToText "" (select'binds x)) ++ "]\n"
+        ++ indented ("From = " ++ toText (select'from x)) ++ "\n"
+        ++ indented ("Where = " ++ toText (select'where x)) ++ "\n"
         ++ indent ++ "Distinct = " ++ show (select'distinct x) ++ "\n"
         ++ "}"
       where
-        sBinds [] = ""
-        sBinds (x:xs) = show x ++ ", " ++ sBinds xs
+        bindToText :: String -> String -> Expression -> String
+        bindToText s nm ex = s ++ indent ++ nm ++ " = " ++ toText ex ++ "\n"
 
 instance HasTables Select where
     innerTables sel = innerTables (select'from sel)
@@ -638,6 +638,12 @@ instance HasComment Select where
 class HasParams it where
     params :: Record -> it -> it
     getParams :: it -> Record
+
+    nameParams :: String -> it -> it
+    nameParams s query = params (getParams query #name s) query
+
+    -- addParam :: Field -> it -> it
+    -- addParam fld query = params (getParams query #addParam fld) query
 
 instance HasParams Select where
     params pars sel = sel{ select'params = pars }

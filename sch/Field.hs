@@ -12,7 +12,7 @@ data Field = Field {
     field'name    :: String,
     field'comment :: [String],
     field'type    :: Type
-} deriving (Eq)
+} deriving (Eq, Show)
 
 -- |Конструктор поля записи.
 field :: Type -> Field
@@ -22,9 +22,9 @@ field t = Field{
     field'type    = t
 }
 
-instance Show Field where
-    show x = "Field " ++ show (getName x) ++ " {\n"
-        ++ sqlComment x
+instance ToText Field where
+    toText x = "Field " ++ show (getName x) ++ " {\n"
+        ++ showComment x
         ++ indent ++ "Type = " ++ getName (field'type x)
         ++ "\n}"
 

@@ -40,7 +40,7 @@ data Index = Index {
     index'kind    :: IndexKind, -- ^ Разновидность индекса.
     index'table   :: Table,     -- ^ Индексируемая таблица
     index'order   :: [Order]    -- ^ Поля индекса.
-} deriving (Eq)
+} deriving (Eq, Show)
 
 index :: Table -> [Order] -> Index
 index tab orr = Index{
@@ -61,10 +61,10 @@ getOrder :: Index -> [Order]
 getOrder = index'order
 
 
-instance Show Index where
-    show x = "Index " ++ show (getName x) ++ " {\n"
+instance ToText Index where
+    toText x = "Index " ++ show (getName x) ++ " {\n"
         ++ sKind
-        ++ sqlComment x
+        ++ showComment x
         ++ indented ("Fields = [\n" ++ indented sFields ++ "\n]") ++ "\n"
         ++ indent ++ "Table = " ++ getName (index'table x) ++ "\n"
         ++ "}"

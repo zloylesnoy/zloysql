@@ -20,7 +20,7 @@ data Update = Update {
     update'table   :: Table,
     update'set     :: [Expression],
     update'where   :: Expression
-}   deriving (Eq)
+}   deriving (Eq, Show)
 
 update :: Table -> Update
 update tab = Update{
@@ -32,16 +32,16 @@ update tab = Update{
     update'where   = ExprTrue
 }
 
-instance Show Update where
-    show x = "Update " ++ show (getName x) ++ " {\n"
-        ++ sqlComment x
+instance ToText Update where
+    toText x = "Update " ++ show (getName x) ++ " {\n"
+        ++ showComment x
         ++ indent ++ "Params = '" ++ getName (update'params x) ++ "'\n"
         ++ indented ("Table = " ++ show (getName $ update'table x)) ++ "\n"
         ++ indented ("Set = [" ++ sSets) ++ "]\n"
-        ++ indented ("Where = " ++ show (update'where x)) ++ "\n"
+        ++ indented ("Where = " ++ toText (update'where x)) ++ "\n"
         ++ "}"
       where
-        sSets = (join "\n" (map show (update'set x)))
+        sSets = (join "\n" (map toText (update'set x)))
 
 instance HasName Update where
     name s r = r{ update'name = s }
