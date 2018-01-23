@@ -211,7 +211,7 @@ selectedRecord tab flds = record
 
 -- |Возвращает запись, в которую помещается первичный ключ таблицы.
 primaryKeyRecord :: Table -> Record
-primaryKeyRecord tab = selectedRecord tab (getKey tab) #name (getName tab ++ "_key")
+primaryKeyRecord tab = selectedRecord tab (getKey tab) #name (getName tab ++ "_Key")
 
 class HasTable it where
     getTable :: it -> Table

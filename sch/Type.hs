@@ -230,7 +230,7 @@ typeFloat80 = typeFloat #mantissa 64 #expBits 15
 
 -- |Decimal type, size is minimal available.
 typeDecimal :: Type
-typeDecimal = (newType FloatKind) {
+typeDecimal = (newType DecimalKind) {
     type'digits    = Just 0,
     type'precision = Just 0
 }

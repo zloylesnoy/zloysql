@@ -1,5 +1,6 @@
 ﻿module Escape (
-    quotedId, quotedIds, escaped
+    quotedId, quotedIds, escaped,
+    goEscaped
 ) where 
 
 import Data.Bits ((.&.), shiftR)
@@ -21,7 +22,7 @@ quotedIds :: DialectSQL -> [String] -> String
 quotedIds lang ids = join ", " (map (quotedId lang) ids)
 
 
--- |Quote string using escape-secuences.
+-- |Quote string using escape-sequences for SQL.
 escaped :: DialectSQL -> String -> String
 
 escaped MySQL s = "'" ++ myEscaped s ++ "'"
@@ -75,6 +76,25 @@ pgEscCh ch = if n < 0x10000
     d3 = hex (shiftR n 12 .&. 15)
     d4 = hex (shiftR n 16 .&. 15)
     d5 = hex (shiftR n 20 .&. 15)
+
+-- |Escape one character for Go language.
+goEscCh :: Char -> String
+goEscCh '\n' = "\\n"
+goEscCh '\r' = "\\r"
+goEscCh '\t' = "\\t"
+goEscCh '\\' = "\\\\"
+goEscCh '\"' = "\\\""
+goEscCh ch = if n < 32
+    then ['\\', 'x', d0, d1]
+    else [ch]
+  where
+    n = fromEnum ch
+    d0 = hex (n .&. 15)
+    d1 = hex (shiftR n  4 .&. 15)
+
+-- |Quote string using escape-sequences for Go string.
+goEscaped :: String -> String
+goEscaped s = concat $ map goEscCh s
 
 -- |Decimal 0..15 to hexadecimal character.
 hex :: Int -> Char

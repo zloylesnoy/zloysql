@@ -2,7 +2,8 @@
     module Sch,
     module SqlType,
 
-    sqlCreate, sqlDrop, sqlQueries
+    sqlCreate, sqlDrop,
+    sqlDelete, sqlUpdate, sqlQueries
 ) where
 
 import Data.String.Utils (join)

@@ -41,7 +41,7 @@ deleteBy tab flds = delete tab
 deleteByKey :: Table -> Delete
 deleteByKey tab = deleteBy tab (getKey tab)
     #params  (primaryKeyRecord tab)
-    #name    ("deleteByKey_" ++ getName tab)
+    #name    ("DeleteByKey_" ++ getName tab)
     #comment ["Delete records from table '" ++ getName tab ++ "' by primary key."]
 
 instance ToText Delete where

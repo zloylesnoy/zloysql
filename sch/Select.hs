@@ -743,7 +743,7 @@ getOffset = select'offset
 -- |Чтение одной записи таблицы по первичному ключу.
 readOne :: Table -> Select
 readOne tab = select (FromTable tab) (getRecord tab)
-    #name   ("readOne_" ++ getName tab)
+    #name   ("ReadOne_" ++ getName tab)
     #params (primaryKeyRecord tab)
     #where_ (whereGiven tab primaryKey)
     // ("Read one record from '" ++ getName tab ++ "' table by primary key.")
@@ -753,7 +753,7 @@ readOne tab = select (FromTable tab) (getRecord tab)
 -- |Чтение всей таблицы, упорядоченной по первичному ключу.
 readAll :: Table -> Select
 readAll tab = select (FromTable tab) (getRecord tab)
-    #name    ("readAll_" ++ getName tab)
+    #name    ("ReadAll_" ++ getName tab)
     #orderBy (map Asc primaryKey)
     // ("Read all records from '" ++ getName tab ++ "' table ordered by primary key.")
   where
@@ -764,7 +764,7 @@ whereGiven tab []  = ExprTrue
 whereGiven tab [x] = ExprField tab x .==. ExprParam x t
   where
     t = case getField x tab of
-      Nothing  -> error "Primary key field not found in whereGiven"
+      Nothing  -> error $ "Primary key field '" ++ x ++ "' not found in whereGiven"
       Just fld -> getType fld
 whereGiven tab (x:xs) = whereGiven tab [x] .&&. whereGiven tab xs
 
