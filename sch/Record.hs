@@ -43,7 +43,7 @@ instance HasComment Record where
 
 checkFields :: DialectSQL -> Record -> Errors
 checkFields lang it = foldr (\f ss -> ss ++ check lang f) [] (record'fields it) ++
-    map errMsg (notUniques $ map getName $ record'fields it)
+    map errMsg (repeated $ map getName $ record'fields it)
       where
         errMsg = (\s -> "Duplicate field name '" ++ s ++ "'.")
 

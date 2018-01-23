@@ -96,7 +96,7 @@ checkFields idx
     | otherwise  = map dupMsg dups -- есть дублирующиеся поля в индексе
   where
     names = map orderFieldName (getOrder idx)
-    dups = notUniques names
+    dups = repeated names
     dupMsg = (\s -> "Duplicate '" ++ s ++ "' field in index.")
 
 checkOneField :: Index -> String -> Errors

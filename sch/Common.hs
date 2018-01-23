@@ -6,7 +6,7 @@
 
     indent, indented,
     pow2x, pow10x, showDecimal,
-    notUniques, goodId, goodIdWithDots,
+    repeated, goodId, goodIdWithDots,
     Errors,
 
     HasCheck, check, checkAll,
@@ -44,13 +44,6 @@ data DialectSQL
     | MicrosoftSQL
     | PostgreSQL
     deriving (Eq, Show)
-{-
-instance Show DialectSQL where
-    show MySQL        = "MySQL"
-    show MicrosoftSQL = "MicrosoftSQL"
-    show PostgreSQL   = "PostgreSQL"
--}
-
 
 -- |Sort order for ORDER BY, HAVING and INDEX.
 data Order
@@ -103,18 +96,18 @@ showScientific sc =
     0.1234E+6 = 123400   n=4 e=6  digits=6 after=0 before=6 zeroes=2
 -}
 
-
-
 -- |Найти неуникальные имена.
 --  TODO: case insensitive
-notUniques :: [String] -> [String]
-notUniques [] = []
-notUniques [x] = []
-notUniques (x:xs) = if (elem x xs) && not (elem x nuxs)
-    then x:nuxs
-    else nuxs
+repeated :: [String] -> [String]
+repeated []     = []
+repeated [x]    = []
+repeated (x:xs) = if x `elem` pred
+    then pred
+    else if x `elem` xs
+        then pred
+        else x:pred
   where
-    nuxs = notUniques xs
+    pred = repeated xs
 
 -- |Строка является правильным идентификатором.
 --  MySQL ограничивает длину идентификаторов 64 символами.

@@ -133,8 +133,8 @@ checkFields fkey
   where
     parentFields = map link'parent (fkey'fields fkey)
     childFields  = map link'child  (fkey'fields fkey)
-    parentDups = notUniques parentFields
-    childDups  = notUniques childFields
+    parentDups = repeated parentFields
+    childDups  = repeated childFields
     dupMsg = (\s -> "Duplicate '" ++ s ++ "' field in foreign key.")
 
 -- Найти тип поля, если такое поле есть.

@@ -22,8 +22,7 @@
     limit, limit_, noLimit, getLimit,
     offset, offset_, getOffset,
 
-    readOne, readAll, whereGiven, returnAs, returnOnly,
-    sqlExpr, sqlSelect
+    readOne, readAll, whereGiven, returnAs, returnOnly
 ) where
 
 import Data.String.Utils (join)
@@ -480,42 +479,7 @@ simplify expr = case expr of
     exprBool True  = ExprTrue
     exprBool False = ExprFalse
 
-sqlExpr :: DialectSQL -> Expression -> String
-sqlExpr lang expr = case simplify expr of
 
-    ExprNull  -> "NULL"
-    ExprTrue  -> "(0 = 0)"
-    ExprFalse -> "(0 = 1)"
-    ExprIntegerConst c  -> if c < 0
-        then "(" ++ show c ++ ")"
-        else show c
-    ExprDoubleConst c   -> if c < 0
-        then "(" ++ show c ++ ")"
-        else show c
-    ExprDecimalConst digits precision -> show digits -- TODO
-    ExprStringConst c -> escaped lang c
-
-    -- |Унарный оператор.
-    ExprUnary oper e1 -> "(" ++ oper ++ sqlExpr lang e1 ++ ")"
-
-    -- |Бинарный оператор.
-    ExprBinary e1 "^" e2 -> let
-        xor = if lang == PostgreSQL then "#" else "^"
-      in bin e1 xor e2
-    ExprBinary e1 oper e2 -> bin e1 oper e2
-
-    -- Используют контекст. TODO
-    ExprParam param t -> " @" ++ param ++ " "
-    ExprField tab fld -> quotedId lang (getName tab) ++ "." ++ quotedId lang fld
-    ExprSelect sel -> "(\n" ++ sqlSelect lang sel ++ "\n)"
-    ExprOuter alias fld t -> quotedId lang alias ++ "." ++ quotedId lang fld
-    ExprJoinUsing flds -> "USING " ++ join ", " (map (quotedId lang) flds)
-    ExprDefault -> "DEFAULT"
-    ExprSet e1 e2 -> sqlExpr lang e1 ++ " = " ++ sqlExpr lang e2
-  where
-    bin = \e1 op e2 ->
-        "(" ++ sqlExpr lang e1 ++ " " ++ op ++ " " ++ sqlExpr lang e2 ++ ")"
-    
 
 
 
@@ -784,91 +748,7 @@ returnOnly xs sel = sel{ select'result = sr }
         #name (getName oldRes ++ "_" ++ concat xs)
 
 
--- | Возвращает секцию LIMIT ... OFFSET ... оператора SQL SELECT.
-sqlLimit :: DialectSQL -> Expression -> Expression -> String
 
-sqlLimit MySQL lim ofs = if (ofs == ExprIntegerConst 0) && (lim == ExprNull) then ""
-    -- [LIMIT row_count OFFSET offset]
-    else "\nLIMIT " ++ sqlExpr MicrosoftSQL lim ++ "\nOFFSET " ++ sqlExpr MicrosoftSQL ofs
-
-sqlLimit MicrosoftSQL lim ofs = ofset ++ limit
-    -- [OFFSET число ROWS [FETCH FIRST число ROWS ONLY]]
-  where
-    ofset = if (ofs == ExprIntegerConst 0) && (lim == ExprNull) then ""
-        else "\nOFFSET " ++ sqlExpr MicrosoftSQL ofs ++ " ROWS"
-    limit = if lim == ExprNull then ""
-        else "\nFETCH FIRST " ++ sqlExpr MicrosoftSQL lim ++ " ROWS ONLY"
-
-sqlLimit PostgreSQL lim ofs = limit ++ ofset
-    -- [ LIMIT число ] [ OFFSET число ]
-  where
-    limit = if lim == ExprNull then ""
-        else "\nLIMIT " ++ sqlExpr PostgreSQL lim
-    ofset = if ofs == ExprIntegerConst 0 then ""
-        else "\nOFFSET " ++ sqlExpr PostgreSQL ofs
-
-
-sqlOrder :: DialectSQL -> Order -> String
-sqlOrder lang (Asc  fld) = quotedId lang fld ++ " ASC"
-sqlOrder lang (Desc fld) = quotedId lang fld ++ " DESC"
-
-sqlOrders :: DialectSQL -> String -> [Order] -> String
-sqlOrders _ _ []      = ""
-sqlOrders lang hdr xs = hdr ++ join ", " (map (sqlOrder lang) xs)
-
-
--- | Возвращает секцию SELECT ... FROM оператора SQL SELECT.
-sqlSelectResult :: DialectSQL -> Select -> Field -> String
-sqlSelectResult lang sel fld = case fldExpr of
-    -- Nothing   -> error "Field not found in select'binds"
-    Nothing   -> quotedId lang fldName
-    Just expr -> (sqlExpr lang expr) ++ " AS " ++ quotedId lang fldName
-  where
-    fldName = getName fld
-    fldExpr = Map.lookup fldName (select'binds sel) -- :: Maybe Expression
-
-
-sqlOn :: DialectSQL -> Expression -> String
-sqlOn _ ExprTrue = ""
-sqlOn lang expr  = " ON " ++ sqlExpr lang expr
-
-
--- | Возвращает секцию FROM ... оператора SQL SELECT.
-sqlFrom :: DialectSQL -> From -> String
-
-sqlFrom lang (FromAs alias frm) = sqlFrom lang frm ++ " AS " ++ quotedId lang alias
-
-sqlFrom lang (FromTable tab) = quotedId lang $ getName tab
-
-sqlFrom lang (CrossJoin f1 f2) = "(" ++ sqlFrom lang f1 ++ " CROSS JOIN " ++ sqlFrom lang f2 ++ ")"
-
-sqlFrom lang (InnerJoin f1 f2 expr) = "(" ++ sqlFrom lang f1 ++
-    " INNER JOIN " ++ sqlFrom lang f2 ++ sqlOn lang expr ++ ")"
-
-sqlFrom lang (LeftJoin f1 f2 expr) = "(" ++ sqlFrom lang f1 ++
-    " LEFT JOIN " ++ sqlFrom lang f2 ++ sqlOn lang expr ++ ")"
-
-sqlFrom lang (RightJoin f1 f2 expr) = "(" ++ sqlFrom lang f1 ++
-    " RIGHT JOIN " ++ sqlFrom lang f2 ++ sqlOn lang expr ++ ")"
-
-sqlFrom lang (FromSelect sel) = sqlSelect lang sel
-
-
--- |Возвращает оператор SQL SELECT.
-sqlSelect :: DialectSQL -> Select -> String
-sqlSelect lang sel = "SELECT" ++ sDistinct ++ "\n  " ++ sResult ++ "\nFROM " ++ sFrom
-    ++ sWhere ++ sGroupBy ++ sHaving ++ sOrderBy ++ sLimit
-  where
-    sDistinct = if getDistinct sel then " DISTINCT" else ""
-    sFrom     = sqlFrom lang (select'from sel)
-    sWhere    = let wr = getWhere sel in
-        if wr == ExprTrue then "" else "\nWHERE " ++ sqlExpr lang wr
-    sHaving   = let hv = select'having sel in
-        if hv == ExprTrue then "" else "\nHAVING " ++ sqlExpr lang hv
-    sGroupBy  = sqlOrders lang "\nGROUP BY " (select'groupBy sel)
-    sOrderBy  = sqlOrders lang "\nORDER BY " (select'orderBy sel)
-    sLimit    = sqlLimit lang (select'limit sel) (select'offset sel)
-    sResult   = join ",\n  " $ map (sqlSelectResult lang sel) (getFields $ select'result sel)
 
 
 

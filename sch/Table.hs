@@ -167,7 +167,7 @@ checkKey t
     | otherwise = map dupmsg dups -- есть дублирующиеся поля в primary key
   where
     key = table'key t
-    dups = notUniques key
+    dups = repeated key
     dupmsg = (\s -> "Duplicate '" ++ s ++ "' field in primary key.")
 
 checkAutokey :: Table -> Errors

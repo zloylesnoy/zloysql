@@ -215,7 +215,7 @@ instance SchemeAdd Update where
 -- |Проверить список элементов схемы.
 checkItems :: (HasName a, HasCheck a) => DialectSQL -> [a] -> Errors
 checkItems lang ls = foldr (\f ss -> ss ++ check lang f) [] ls
-    ++ map errmsg (notUniques $ map getName $ ls)
+    ++ map errmsg (repeated $ map getName $ ls)
       where
         errmsg = (\s -> "Duplicate name '" ++ s ++ "'.")
 
