@@ -14,6 +14,9 @@ Code generator for Go language using
 https://github.com/go-sql-driver/mysql
 -}
 
+tab :: Char
+tab = '\t'
+
 data GoTypeKind
     = GoStd -- predefined Go type or type defined in common.go file
     | GoBig -- need math/big
@@ -63,7 +66,7 @@ goField fld = case length rem of
     _ -> rem ++ [nameType]
   where
     rem = cppComment fld
-    nameType = "\tM_" ++ getName fld ++ " T_" ++ getName (getType fld)
+    nameType = tab:"M_" ++ getName fld ++ " T_" ++ getName (getType fld)
 
 goRecord :: Record -> [String]
 goRecord r = cppComment r
@@ -76,17 +79,19 @@ golang lang sch = unlines $ [
     "package zloysql", "",
 
     "import (",
-    "\t\"database/sql\""]
+    tab:"\"database/sql\""]
     ++ importBig
     ++ importDec
     ++ [")", ""]
 
     ++ cppComment sch
-    ++ ["type DB_" ++ getName sch ++ " struct {", "\tP *sql.DB", "}", ""]
+    ++ ["type DB_" ++ getName sch ++ " struct {", tab:"P *sql.DB", "}", ""]
 
     ++ concat typeDefs
     ++ concat recordDefs
     ++ concat deleteFuncs
+    ++ concat updateFuncs
+    ++ concat selectFuncs
   where
     typeKindDefs :: [(GoTypeKind, [String])]
     typeKindDefs = map goTypeKindDef (getTypes sch)
@@ -97,28 +102,34 @@ golang lang sch = unlines $ [
     typeDefs :: [[String]]
     typeDefs = map snd typeKindDefs
 
-    importBig = if any (== GoBig) typeKinds then ["\t\"math/big\""] else []
-    importDec = if any (== GoDec) typeKinds then ["", "\t\"github.com/shopspring/decimal\""] else []
+    importBig = if any (== GoBig) typeKinds then [tab:"\"math/big\""] else []
+    importDec = if any (== GoDec) typeKinds then ["", tab:"\"github.com/shopspring/decimal\""] else []
 
     recordDefs :: [[String]]
     recordDefs = map goRecord $ filter (not.null.getFields) (getRecords sch)
 
     deleteFuncs :: [[String]]
-    deleteFuncs = map (goDelete lang) (getDeletes sch)
+    deleteFuncs = map (goExec lang) (getDeletes sch)
 
-goDelete :: DialectSQL -> Delete -> [String]
-goDelete lang del = [
-    "func (it DB_sp) Q_" ++ getName del ++ "(" ++ params ++ ") (int64, error) {",
+    updateFuncs :: [[String]]
+    updateFuncs = map (goExec lang) (getUpdates sch)
+
+    selectFuncs :: [[String]]
+    selectFuncs = map (goExec lang) (getSelects sch)
+
+goExec :: (HasName q, HasSql q, HasParams q) => DialectSQL -> q -> [String]
+goExec lang sql = [
+    "func (it DB_sp) Q_" ++ getName sql ++ "(" ++ funcParams ++ ") (int64, error) {",
     tab:"if it.P == nil {",
     tab:tab:"return 0, ErrorSqlDbIsNil",
     tab:"}",
     "",
-    tab:"const query string = " ++ query]
-    ++ pvars ++
+    tab:"const query string = " ++ queryString]
+    ++ qVars ++
     ["",
     tab:"var res sql.Result",
     tab:"var err error",
-    tab:"res, err = it.P.Exec(query" ++ concat nameds ++ ")",
+    tab:"res, err = it.P.Exec(query" ++ concat execParams ++ ")",
     "",
     tab:"var affected int64 = 0",
     tab:"if res != nil && err == nil {",
@@ -129,33 +140,86 @@ goDelete lang del = [
     "}",
     ""]
   where
-    tab = '\t'
+    swp :: SqlWithParams
+    swp = getSql lang sql
+
+    queryString :: String
+    queryString = "\"" ++ goEscaped (getQueryString swp) ++ "\""
+
+    paramsRec :: Record
+    paramsRec = getParams sql
+
+    funcParams :: String
+    funcParams = if null $ getFields paramsRec
+        then ""
+        else "a S_" ++ getName paramsRec
+
+    paramFields :: [Field]
+    paramFields = selectByNames (getFields paramsRec) (getParamNames swp)
+
+    numbered :: [(Int, Field)]
+    numbered = zip [0..] paramFields
+
+    execParams :: [String]
+    execParams = map (\p -> ", q" ++ show (fst p)) numbered
+
+    qVars :: [String]
+    qVars = map (goInputVar lang) numbered
+
+{-
+goDelete :: DialectSQL -> Delete -> [String]
+goDelete lang del = [
+    "func (it DB_sp) Q_" ++ getName del ++ "(" ++ funcParams ++ ") (int64, error) {",
+    tab:"if it.P == nil {",
+    tab:tab:"return 0, ErrorSqlDbIsNil",
+    tab:"}",
+    "",
+    tab:"const query string = " ++ queryString]
+    ++ qVars ++
+    ["",
+    tab:"var res sql.Result",
+    tab:"var err error",
+    tab:"res, err = it.P.Exec(query" ++ concat execParams ++ ")",
+    "",
+    tab:"var affected int64 = 0",
+    tab:"if res != nil && err == nil {",
+    tab:tab:"affected, err = res.RowsAffected()",
+    tab:"}",
+    "",
+    tab:"return affected, err",
+    "}",
+    ""]
+  where
+    swp :: SqlWithParams
+    swp = sqlDelete lang del
+
+    queryString :: String
+    queryString = "\"" ++ goEscaped (getQueryString swp) ++ "\""
 
     paramsRec :: Record
     paramsRec = getParams del
 
-    params :: String
-    params = if null $ getFields paramsRec
+    funcParams :: String
+    funcParams = if null $ getFields paramsRec
         then ""
         else "a S_" ++ getName paramsRec
 
-    query :: String
-    query = "\"" ++ goEscaped (sqlDelete lang del) ++ "\""
+    paramFields :: [Field]
+    paramFields = selectByNames (getFields paramsRec) (getParamNames swp)
 
-    nameds :: [String]
-    nameds = map named $ getFields paramsRec
+    numbered :: [(Int, Field)]
+    numbered = zip [0..] paramFields
 
-    named :: Field -> String
-    named fld = ", sql.Named(\"" ++ s ++ "\", p_" ++ s ++ ")"
-      where
-        s = getName fld
+    execParams :: [String]
+    execParams = map (\p -> ", q" ++ show (fst p)) numbered
 
-    pvars :: [String]
-    pvars = map (goInputVar lang) (getFields paramsRec)
+    qVars :: [String]
+    qVars = map (goInputVar lang) numbered
+-}
 
 -- Create local varibale for SQL query input paramter.
-goInputVar :: DialectSQL -> Field -> String
-goInputVar lang fld = "\tvar p_" ++ nm ++ " " ++ driverType ++ " = " ++ value ++ " // " ++ baseType
+goInputVar :: DialectSQL -> (Int, Field) -> String
+goInputVar lang (idx, fld) = tab:"var q" ++ show idx ++ " " ++ driverType ++ " = " ++ value ++ " // " ++ baseType
   where
     nm = getName fld
     tp = getType fld

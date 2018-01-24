@@ -28,7 +28,7 @@ delete tab = Delete{
 
 deleteAll :: Table -> Delete
 deleteAll tab = (delete tab){
-    delete'name    = "deleteAll_" ++ getName tab,
+    delete'name    = "DeleteAll_" ++ getName tab,
     delete'comment = ["Delete all records from table '" ++ getName tab ++ "'"]
 }
 

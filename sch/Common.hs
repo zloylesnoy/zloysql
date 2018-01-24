@@ -10,7 +10,7 @@
     Errors,
 
     HasCheck, check, checkAll,
-    HasName, getName, name, getTitle, errorIn, checkName,
+    HasName, getName, name, getTitle, errorIn, checkName, selectByNames,
     HasComment, getComment, comment, addComment, cppComment, showComment,
     ToText, toText
 ) where 
@@ -157,6 +157,12 @@ class HasName it where
     checkName :: it -> Errors
     checkName x = if goodId s then [] else ["Invalid name '" ++ s ++ "'"]
         where s = getName x
+
+selectByNames :: (HasName a) => [a] -> [String] -> [a]
+selectByNames items [] = []
+selectByNames items (x:xs) = filter (\item -> getName item == x) items
+    ++ selectByNames items xs
+
 
 -- |Something with multiline comment.
 class HasComment it where

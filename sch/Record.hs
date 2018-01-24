@@ -78,11 +78,9 @@ joinRecords r1 r2 = joinFields r1 (getFields r2)
 
 -- |Оставить в записи только поля с именами из списка в порядке, заданном списком.
 selectFromRecord :: [String] -> Record -> Record
-selectFromRecord names rc = record #name newName #fields newFields
-  where
-    filterFieldsByName flds nm = filter (\fld -> getName fld == nm) flds
-    newFields = concat $ map (filterFieldsByName $ getFields rc) names
-    newName = getName rc ++ "_" ++ concat names
+selectFromRecord names rc = record
+    #name   (getName rc ++ "_" ++ concat names)
+    #fields (selectByNames (getFields rc) names)
 
 -- |Оставить в записи только поля с именами не из списка.
 removeFromRecord :: [String] -> Record -> Record
