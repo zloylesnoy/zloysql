@@ -5,6 +5,8 @@
 ) where
 
 import Data.List (isPrefixOf)
+import Data.String.Utils (join)
+
 import Sch
 import Sql
 
@@ -115,124 +117,14 @@ golang lang sch = unlines $ [
     updateFuncs = map (goExec lang) (getUpdates sch)
 
     selectFuncs :: [[String]]
-    selectFuncs = map (goExec lang) (getSelects sch)
+    selectFuncs = map (goQuery lang) (getSelects sch)
 
-goExec :: (HasName q, HasSql q, HasParams q) => DialectSQL -> q -> [String]
-goExec lang sql = [
-    "func (it DB_sp) Q_" ++ getName sql ++ "(" ++ funcParams ++ ") (int64, error) {",
-    tab:"if it.P == nil {",
-    tab:tab:"return 0, ErrorSqlDbIsNil",
-    tab:"}",
-    "",
-    tab:"const query string = " ++ queryString]
-    ++ qVars ++
-    ["",
-    tab:"var res sql.Result",
-    tab:"var err error",
-    tab:"res, err = it.P.Exec(query" ++ concat execParams ++ ")",
-    "",
-    tab:"var affected int64 = 0",
-    tab:"if res != nil && err == nil {",
-    tab:tab:"affected, err = res.RowsAffected()",
-    tab:"}",
-    "",
-    tab:"return affected, err",
-    "}",
-    ""]
+
+-- Create local varibale for SQL query result.
+goOutputVar :: DialectSQL -> (Int, Field) -> String
+goOutputVar lang (idx, fld) = tab:"var r" ++ show idx ++ " " ++ driverType
   where
-    swp :: SqlWithParams
-    swp = getSql lang sql
-
-    queryString :: String
-    queryString = "\"" ++ goEscaped (getQueryString swp) ++ "\""
-
-    paramsRec :: Record
-    paramsRec = getParams sql
-
-    funcParams :: String
-    funcParams = if null $ getFields paramsRec
-        then ""
-        else "a S_" ++ getName paramsRec
-
-    paramFields :: [Field]
-    paramFields = selectByNames (getFields paramsRec) (getParamNames swp)
-
-    numbered :: [(Int, Field)]
-    numbered = zip [0..] paramFields
-
-    execParams :: [String]
-    execParams = map (\p -> ", q" ++ show (fst p)) numbered
-
-    qVars :: [String]
-    qVars = map (goInputVar lang) numbered
-
-{-
-goDelete :: DialectSQL -> Delete -> [String]
-goDelete lang del = [
-    "func (it DB_sp) Q_" ++ getName del ++ "(" ++ funcParams ++ ") (int64, error) {",
-    tab:"if it.P == nil {",
-    tab:tab:"return 0, ErrorSqlDbIsNil",
-    tab:"}",
-    "",
-    tab:"const query string = " ++ queryString]
-    ++ qVars ++
-    ["",
-    tab:"var res sql.Result",
-    tab:"var err error",
-    tab:"res, err = it.P.Exec(query" ++ concat execParams ++ ")",
-    "",
-    tab:"var affected int64 = 0",
-    tab:"if res != nil && err == nil {",
-    tab:tab:"affected, err = res.RowsAffected()",
-    tab:"}",
-    "",
-    tab:"return affected, err",
-    "}",
-    ""]
-  where
-    swp :: SqlWithParams
-    swp = sqlDelete lang del
-
-    queryString :: String
-    queryString = "\"" ++ goEscaped (getQueryString swp) ++ "\""
-
-    paramsRec :: Record
-    paramsRec = getParams del
-
-    funcParams :: String
-    funcParams = if null $ getFields paramsRec
-        then ""
-        else "a S_" ++ getName paramsRec
-
-    paramFields :: [Field]
-    paramFields = selectByNames (getFields paramsRec) (getParamNames swp)
-
-    numbered :: [(Int, Field)]
-    numbered = zip [0..] paramFields
-
-    execParams :: [String]
-    execParams = map (\p -> ", q" ++ show (fst p)) numbered
-
-    qVars :: [String]
-    qVars = map (goInputVar lang) numbered
--}
-
--- Create local varibale for SQL query input paramter.
-goInputVar :: DialectSQL -> (Int, Field) -> String
-goInputVar lang (idx, fld) = tab:"var q" ++ show idx ++ " " ++ driverType ++ " = " ++ value ++ " // " ++ baseType
-  where
-    nm = getName fld
-    tp = getType fld
-    driverType = goSqlDriverType lang tp
-    baseType = snd $ goTypeKindName tp
-
-    value :: String
-    value | baseType == driverType         = "a.M_" ++ nm
-          | "sql." `isPrefixOf` driverType = "a.M_" ++ nm ++ ".ToSql()"
-          | baseType == "*big.Int"         = "BigIntToBytes(a.M_" ++ nm ++ ")"
-          | baseType == "decimal.Decimal"  = "DecimalToBytes(a.M_" ++ nm ++ ")"
-          | driverType == "[]byte"         = "a.M_" ++ nm ++ ".ToSql()"
-          | otherwise                      = driverType ++ "(a.M_" ++ nm ++ ")"
+    driverType = goSqlDriverType lang $ getType fld
 
 goSqlDriverType :: DialectSQL -> Type -> String
 goSqlDriverType lang t
@@ -263,10 +155,167 @@ goNullableSqlDriverType lang t
     | getKind t == DecimalKind = "[]byte" -- SQL 'NULL' is 'nil' in Go language.
     | otherwise                = error $ "Go nullable type not supported " ++ getName t
 
+goExec :: (HasName q, HasSql q, HasParams q) => DialectSQL -> q -> [String]
+goExec lang sql = [
+    "func (it DB_sp) Q_" ++ getName sql ++ "(" ++ funcParams ++ ") (int64, error) {",
+    tab:"if it.P == nil {",
+    tab:tab:"return 0, ErrorSqlDbIsNil",
+    tab:"}",
+    "",
+    tab:"const query string = " ++ queryString]
+    ++ qVars ++
+    ["",
+    tab:"var res sql.Result",
+    tab:"var err error",
+    tab:"res, err = it.P.Exec(query" ++ concat qParams ++ ")",
+    "",
+    tab:"var affected int64 = 0",
+    tab:"if res != nil && err == nil {",
+    tab:tab:"affected, err = res.RowsAffected()",
+    tab:"}",
+    "",
+    tab:"return affected, err",
+    "}",
+    ""]
+  where
+    swp :: SqlWithParams
+    swp = getSql lang sql
+
+    queryString :: String
+    queryString = "\"" ++ goEscaped (getQueryString swp) ++ "\""
+
+    paramsRec :: Record
+    paramsRec = getParams sql
+
+    funcParams :: String
+    funcParams = if null $ getFields paramsRec
+        then ""
+        else "a S_" ++ getName paramsRec
+
+    paramFields :: [Field]
+    paramFields = selectByNames (getFields paramsRec) (getParamNames swp)
+
+    qNumbered :: [(Int, Field)]
+    qNumbered = zip [0..] paramFields
+
+    qParams :: [String]
+    qParams = map (\p -> ", q" ++ show (fst p)) qNumbered
+
+    qVars :: [String]
+    qVars = map (goInputVar lang) qNumbered
 
 
+goQuery :: (HasName q, HasSql q, HasParams q, HasResult q) => DialectSQL -> q -> [String]
+goQuery lang sql = [
+    "func (it DB_sp) Q_" ++ getName sql ++ "(" ++ funcParams ++ ") ([]S_" ++ getName resultRec ++ ", error) {",
+    tab:"if it.P == nil {",
+    tab:tab:"return nil, ErrorSqlDbIsNil",
+    tab:"}",
+    "",
+    tab:"const query string = " ++ queryString]
+    ++ qVars ++ "":rVars ++
+    ["",
+    tab:"var rows *sql.Rows",
+    tab:"var err error",
+    tab:"rows, err = it.P.Query(query" ++ concat qParams ++ ")",
+    tab:"if err != nil {",
+    tab:tab:"return nil, err",
+    tab:"}",
+    tab:"defer rows.Close()",
+    "",
+    tab:"var result []S_" ++ getName resultRec,
+    tab:"var item S_" ++ getName resultRec,
+    tab:"for rows.Next() {",
+    tab:tab:"err = rows.Scan(" ++ join ", " rParams ++ ")",
+    tab:tab:"if err != nil {",
+    tab:tab:tab:"return nil, err",
+    tab:tab:"}",
+    ""]
+    ++ rSetItem ++
+    ["",
+    tab:tab:"result = append(result, item)",
+    tab:"}",
+    tab:"err = rows.Err()",
+    tab:"if err != nil {",
+    tab:tab:"return nil, err",
+    tab:"}",
+    "",
+    tab:"return result, nil",
+    "}",
+    ""]
+  where
+    swp :: SqlWithParams
+    swp = getSql lang sql
 
+    queryString :: String
+    queryString = "\"" ++ goEscaped (getQueryString swp) ++ "\""
 
+    paramsRec :: Record
+    paramsRec = getParams sql
+
+    resultRec :: Record
+    resultRec = getResult sql
+
+    funcParams :: String
+    funcParams = if null $ getFields paramsRec
+        then ""
+        else "a S_" ++ getName paramsRec
+
+    paramFields :: [Field]
+    paramFields = selectByNames (getFields paramsRec) (getParamNames swp)
+
+    qNumbered :: [(Int, Field)]
+    qNumbered = zip [0..] paramFields
+
+    rNumbered :: [(Int, Field)]
+    rNumbered = zip [0..] $ getFields resultRec
+
+    qParams :: [String]
+    qParams = map (\p -> ", q" ++ show (fst p)) qNumbered
+
+    rParams :: [String]
+    rParams = map (\p -> "&r" ++ show (fst p)) rNumbered
+
+    qVars :: [String]
+    qVars = map (goInputVar lang) qNumbered
+
+    rVars :: [String]
+    rVars = map (goOutputVar lang) rNumbered
+
+    rSetItem :: [String]
+    rSetItem = map (goSetItem lang) rNumbered
+
+-- Create local varibale for SQL query input paramter.
+goInputVar :: DialectSQL -> (Int, Field) -> String
+goInputVar lang (idx, fld) = tab:"var q" ++ show idx ++ " " ++ driverType ++ " = " ++ value ++ " // " ++ baseType
+  where
+    nm = getName fld
+    tp = getType fld
+    driverType = goSqlDriverType lang tp
+    baseType = snd $ goTypeKindName tp
+
+    value :: String
+    value | baseType == driverType         = "a.M_" ++ nm
+          | "sql." `isPrefixOf` driverType = "a.M_" ++ nm ++ ".ToSqlDriver()"
+          | baseType == "*big.Int"         = "BigIntToBytes(a.M_" ++ nm ++ ")"
+          | baseType == "decimal.Decimal"  = "DecimalToBytes(a.M_" ++ nm ++ ")"
+          | driverType == "[]byte"         = "a.M_" ++ nm ++ ".ToSqlDriver()"
+          | otherwise                      = driverType ++ "(a.M_" ++ nm ++ ")"
+
+goSetItem :: DialectSQL -> (Int, Field) -> String
+goSetItem lang (idx, fld) = tab:tab:"item.M_" ++ getName fld ++ value ++ "// " ++ baseType ++ " " ++ driverType
+  where
+    n = show idx
+    tp = getType fld
+    driverType = goSqlDriverType lang tp
+    baseType = snd $ goTypeKindName tp
+
+    value :: String
+    value | baseType == driverType        = " = r" ++ n
+          | "Maybe" `isPrefixOf` baseType = ".FromSqlDriver(r" ++ n ++ ")"
+          | baseType == "*big.Int"        = " = BigIntFromBytes(r" ++ n ++ ")"
+          | driverType == "[]byte"        = " = DecimalFromBytes(r" ++ n ++ ")"
+          | otherwise                     = " = " ++ baseType ++ "(r" ++ n ++ ")"
 
 
 

@@ -13,7 +13,7 @@
     HasParams, params, getParams, nameParams,
     getFrom,
     HasWhere, where_, getWhere, notWhere, andWhere, orWhere,
-    getResult,
+    HasResult, getResult,
     bind, getBinds, getBind,
     distinct, getDistinct,
     groupBy, getGroupBy,
@@ -613,9 +613,11 @@ instance HasParams Select where
     params pars sel = sel{ select'params = pars }
     getParams = select'params
 
+class HasResult it where
+    getResult :: it -> Record
 
-getResult :: Select -> Record
-getResult = select'result
+instance HasResult Select where
+    getResult = select'result
 
 
 bind :: [Link String Expression] -> Select -> Select
