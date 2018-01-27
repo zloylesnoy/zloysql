@@ -1,6 +1,6 @@
 ﻿module Update (
     Update, update,
-    getUpdateSet
+    getUpdateSet, set
 ) where
 
 import Data.String.Utils (join)
@@ -18,7 +18,7 @@ data Update = Update {
     update'comment :: [String],
     update'params  :: Record,
     update'table   :: Table,
-    update'set     :: [Expression],
+    update'set     :: [SetExpression],
     update'where   :: Expression
 }   deriving (Eq, Show)
 
@@ -68,11 +68,11 @@ instance HasTable Update where
     getTable = update'table
 
 
-getUpdateSet :: Update -> [Expression]
+getUpdateSet :: Update -> [SetExpression]
 getUpdateSet = update'set
 
-
-
+set :: [SetExpression] -> Update -> Update
+set ss upd = upd{ update'set = ss }
 
 
 

@@ -3,8 +3,7 @@
     module SqlType,
 
     SqlWithParams, getQueryString, getParamNames,
-    sqlCreate, sqlDrop,
-    sqlDelete, sqlUpdate, sqlQueries,
+    sqlCreate, sqlDrop, sqlQueries,
     HasSql, getSql
 ) where
 
@@ -22,57 +21,54 @@ data SqlWithParams = SqlWithParams {
     sqlwp'params :: [String] -- ^ parameters
 }
 
+sql :: String -> SqlWithParams
+sql query = SqlWithParams{
+    sqlwp'query  = query,
+    sqlwp'params = []
+}
+
+sqlWithParams :: String -> [String] -> SqlWithParams
+sqlWithParams query prms = SqlWithParams{
+    sqlwp'query  = query,
+    sqlwp'params = prms
+}
+
 getQueryString :: SqlWithParams -> String
 getQueryString = sqlwp'query
 
 getParamNames :: SqlWithParams -> [String]
 getParamNames = sqlwp'params
 
-infixl 1 ??
-(??) :: String -> [String] -> SqlWithParams
-(??) query ps = SqlWithParams{
-    sqlwp'query  = query,
-    sqlwp'params = ps
-}
-
-infixl 1 +<
-(+<) :: String -> SqlWithParams -> SqlWithParams
-(+<) q swp = swp{ sqlwp'query = q ++ sqlwp'query swp }
-
-infixl 1 >+
-(>+) :: SqlWithParams -> String -> SqlWithParams
-(>+) swp q = swp{ sqlwp'query = sqlwp'query swp ++ q }
-
-infixl 1 >+<
-(>+<) :: SqlWithParams -> SqlWithParams -> SqlWithParams
-(>+<) a b = SqlWithParams{
+infixl 1 +?+
+(+?+) :: SqlWithParams -> SqlWithParams -> SqlWithParams
+(+?+) a b = SqlWithParams{
     sqlwp'query  = sqlwp'query a  ++ sqlwp'query b,
     sqlwp'params = sqlwp'params a ++ sqlwp'params b
 }
 
-joinWP :: String -> [SqlWithParams] -> SqlWithParams
-joinWP s []  = "" ?? []
-joinWP s [x] = x
-joinWP s (x:xs) = x >+ s >+< joinWP s xs
+joinSql :: String -> [SqlWithParams] -> SqlWithParams
+joinSql s []     = sql ""
+joinSql s [x]    = x
+joinSql s (x:xs) = x +?+ sql s +?+ joinSql s xs
 
 
 sqlExpr :: DialectSQL -> Expression -> SqlWithParams
 sqlExpr lang expr = case simplify expr of
 
-    ExprNull  -> "NULL" ?? []
-    ExprTrue  -> "(0 = 0)" ?? []
-    ExprFalse -> "(0 = 1)" ?? []
-    ExprIntegerConst c  -> if c < 0
-        then "(" ++ show c ++ ")" ?? []
-        else show c ?? []
-    ExprDoubleConst c -> if c < 0
-        then "(" ++ show c ++ ")" ?? []
-        else show c ?? []
-    ExprDecimalConst digits precision -> show digits ?? [] -- TODO
-    ExprStringConst c -> escaped lang c ?? []
+    ExprNull  -> sql "NULL"
+    ExprTrue  -> sql "(0 = 0)"
+    ExprFalse -> sql "(0 = 1)"
+    ExprIntegerConst c  -> sql $ if c < 0
+        then "(" ++ show c ++ ")"
+        else show c
+    ExprDoubleConst c -> sql $ if c < 0
+        then "(" ++ show c ++ ")"
+        else show c
+    ExprDecimalConst digits precision -> sql $ show digits -- TODO
+    ExprStringConst c -> sql $ escaped lang c
 
     -- |Унарный оператор.
-    ExprUnary oper e1 -> "(" ++ oper +< sqlExpr lang e1 >+ ")"
+    ExprUnary oper e1 -> sql ("(" ++ oper) +?+ sqlExpr lang e1 +?+ sql ")"
 
     -- |Бинарный оператор.
     ExprBinary e1 "^" e2 -> let
@@ -81,40 +77,39 @@ sqlExpr lang expr = case simplify expr of
     ExprBinary e1 oper e2 -> bin e1 oper e2
 
     -- Используют контекст. TODO
-    ExprParam param _ -> "?" ?? [param]
-    ExprField tab fld -> quotedId lang (getName tab) ++ "." ++ quotedId lang fld ?? []
-    ExprSelect sel -> "(\n" +< sqlSelect lang sel >+ "\n)"
-    ExprOuter alias fld t -> quotedId lang alias ++ "." ++ quotedId lang fld ?? []
-    ExprJoinUsing flds -> "USING " ++ join ", " (map (quotedId lang) flds) ?? []
-    ExprDefault -> "DEFAULT" ?? []
-    ExprSet e1 e2 -> sqlExpr lang e1 >+ " = " >+< sqlExpr lang e2
+    ExprParam param _ -> sqlWithParams "?" [param]
+    ExprField tab fld -> sql $ quotedId lang (getName tab) ++ "." ++ quotedId lang fld
+    ExprSelect sel -> sql "(\n" +?+ sqlSelect lang sel +?+ sql "\n)"
+    ExprOuter alias fld t -> sql $ quotedId lang alias ++ "." ++ quotedId lang fld
+    ExprJoinUsing flds -> sql $ "USING " ++ join ", " (map (quotedId lang) flds)
+    ExprDefault -> sql "DEFAULT"
   where
     bin :: Expression -> String -> Expression -> SqlWithParams
-    bin e1 op e2 = "(" +< sqlExpr lang e1 >+ " " ++ op ++ " " >+< sqlExpr lang e2 >+ ")"
+    bin e1 op e2 = sql "(" +?+ sqlExpr lang e1 +?+ sql (" " ++ op ++ " ") +?+ sqlExpr lang e2 +?+ sql ")"
     
 
 -- | Возвращает секцию LIMIT ... OFFSET ... оператора SQL SELECT.
 sqlLimit :: DialectSQL -> Expression -> Expression -> SqlWithParams
 
-sqlLimit MySQL lim ofs = if (ofs == ExprIntegerConst 0) && (lim == ExprNull) then "" ?? []
+sqlLimit MySQL lim ofs = if (ofs == ExprIntegerConst 0) && (lim == ExprNull) then sql ""
     -- [LIMIT row_count OFFSET offset]
-    else "\nLIMIT " +< sqlExpr MicrosoftSQL lim >+ "\nOFFSET " >+< sqlExpr MicrosoftSQL ofs
+    else sql "\nLIMIT " +?+ sqlExpr MicrosoftSQL lim +?+ sql "\nOFFSET " +?+ sqlExpr MicrosoftSQL ofs
 
-sqlLimit MicrosoftSQL lim ofs = ofset >+< limit
+sqlLimit MicrosoftSQL lim ofs = ofset +?+ limit
     -- [OFFSET число ROWS [FETCH FIRST число ROWS ONLY]]
   where
-    ofset = if (ofs == ExprIntegerConst 0) && (lim == ExprNull) then "" ?? []
-        else "\nOFFSET " +< sqlExpr MicrosoftSQL ofs >+ " ROWS"
-    limit = if lim == ExprNull then "" ?? []
-        else "\nFETCH FIRST " +< sqlExpr MicrosoftSQL lim >+ " ROWS ONLY"
+    ofset = if (ofs == ExprIntegerConst 0) && (lim == ExprNull) then sql ""
+        else sql "\nOFFSET " +?+ sqlExpr MicrosoftSQL ofs +?+ sql " ROWS"
+    limit = if lim == ExprNull then sql ""
+        else sql "\nFETCH FIRST " +?+ sqlExpr MicrosoftSQL lim +?+ sql " ROWS ONLY"
 
-sqlLimit PostgreSQL lim ofs = limit >+< ofset
+sqlLimit PostgreSQL lim ofs = limit +?+ ofset
     -- [ LIMIT число ] [ OFFSET число ]
   where
-    limit = if lim == ExprNull then "" ?? []
-        else "\nLIMIT " +< sqlExpr PostgreSQL lim
-    ofset = if ofs == ExprIntegerConst 0 then "" ?? []
-        else "\nOFFSET " +< sqlExpr PostgreSQL ofs
+    limit = if lim == ExprNull then sql ""
+        else sql "\nLIMIT " +?+ sqlExpr PostgreSQL lim
+    ofset = if ofs == ExprIntegerConst 0 then sql ""
+        else sql "\nOFFSET " +?+ sqlExpr PostgreSQL ofs
 
 
 sqlOrder :: DialectSQL -> Order -> String
@@ -130,54 +125,54 @@ sqlOrders lang hdr xs = hdr ++ join ", " (map (sqlOrder lang) xs)
 sqlSelectResult :: DialectSQL -> Select -> Field -> SqlWithParams
 sqlSelectResult lang sel fld = case fldExpr of
     -- Nothing   -> error "Field not found in select'binds"
-    Nothing   -> quotedId lang fldName ?? []
-    Just expr -> sqlExpr lang expr >+ " AS " ++ quotedId lang fldName
+    Nothing   -> sql $ quotedId lang fldName
+    Just expr -> sqlExpr lang expr +?+ sql (" AS " ++ quotedId lang fldName)
   where
     fldName = getName fld
     fldExpr = Map.lookup fldName (getBinds sel) -- :: Maybe Expression
 
 
 sqlOn :: DialectSQL -> Expression -> SqlWithParams
-sqlOn _ ExprTrue = "" ?? []
-sqlOn lang expr  = " ON " +< sqlExpr lang expr
+sqlOn _ ExprTrue = sql ""
+sqlOn lang expr  = sql " ON " +?+ sqlExpr lang expr
 
 
 -- | Возвращает секцию FROM ... оператора SQL SELECT.
 sqlFrom :: DialectSQL -> From -> SqlWithParams
 
-sqlFrom lang (FromAs alias frm) = sqlFrom lang frm >+ " AS " ++ quotedId lang alias
+sqlFrom lang (FromAs alias frm) = sqlFrom lang frm +?+ sql (" AS " ++ quotedId lang alias)
 
-sqlFrom lang (FromTable tab) = quotedId lang (getName tab) ?? []
+sqlFrom lang (FromTable tab) = sql $ quotedId lang (getName tab)
 
-sqlFrom lang (CrossJoin f1 f2) = "(" +< sqlFrom lang f1 >+ " CROSS JOIN " >+< sqlFrom lang f2 >+ ")"
+sqlFrom lang (CrossJoin f1 f2) = sql "(" +?+ sqlFrom lang f1 +?+ sql " CROSS JOIN " +?+ sqlFrom lang f2 +?+ sql ")"
 
-sqlFrom lang (InnerJoin f1 f2 expr) = "(" +< sqlFrom lang f1 >+
-    " INNER JOIN " >+< sqlFrom lang f2 >+< sqlOn lang expr >+ ")"
+sqlFrom lang (InnerJoin f1 f2 expr) = sql "(" +?+ sqlFrom lang f1 +?+
+    sql " INNER JOIN " +?+ sqlFrom lang f2 +?+ sqlOn lang expr +?+ sql ")"
 
-sqlFrom lang (LeftJoin f1 f2 expr) = "(" +< sqlFrom lang f1 >+
-    " LEFT JOIN " >+< sqlFrom lang f2 >+< sqlOn lang expr >+ ")"
+sqlFrom lang (LeftJoin f1 f2 expr) = sql "(" +?+ sqlFrom lang f1 +?+
+    sql " LEFT JOIN " +?+ sqlFrom lang f2 +?+ sqlOn lang expr +?+ sql ")"
 
-sqlFrom lang (RightJoin f1 f2 expr) = "(" +< sqlFrom lang f1 >+
-    " RIGHT JOIN " >+< sqlFrom lang f2 >+< sqlOn lang expr >+ ")"
+sqlFrom lang (RightJoin f1 f2 expr) = sql "(" +?+ sqlFrom lang f1 +?+
+    sql " RIGHT JOIN " +?+ sqlFrom lang f2 +?+ sqlOn lang expr +?+ sql ")"
 
 sqlFrom lang (FromSelect sel) = sqlSelect lang sel
 
 
 -- |Возвращает оператор SQL SELECT.
 sqlSelect :: DialectSQL -> Select -> SqlWithParams
-sqlSelect lang sel = "SELECT" ++ sDistinct ++ "\n  " +< swpResult >+ "\nFROM " >+< swpFrom
-    >+< swpWhere >+ sGroupBy >+< swpHaving >+ sOrderBy >+< swpLimit
+sqlSelect lang sel = sql ("SELECT" ++ sDistinct ++ "\n  ") +?+ swpResult +?+ sql "\nFROM " +?+ swpFrom
+    +?+ swpWhere +?+ sql sGroupBy +?+ swpHaving +?+ sql sOrderBy +?+ swpLimit
   where
     sDistinct = if getDistinct sel then " DISTINCT" else ""
     swpFrom   = sqlFrom lang (getFrom sel)
     swpWhere  = let wr = getWhere sel in
-        if wr == ExprTrue then "" ?? [] else "\nWHERE " +< sqlExpr lang wr
+        if wr == ExprTrue then sql "" else sql "\nWHERE " +?+ sqlExpr lang wr
     swpHaving = let hv = getHaving sel in
-        if hv == ExprTrue then "" ?? [] else "\nHAVING " +< sqlExpr lang hv
+        if hv == ExprTrue then sql "" else sql "\nHAVING " +?+ sqlExpr lang hv
     sGroupBy  = sqlOrders lang "\nGROUP BY " (getGroupBy sel)
     sOrderBy  = sqlOrders lang "\nORDER BY " (getOrderBy sel)
     swpLimit  = sqlLimit lang (getLimit sel) (getOffset sel)
-    swpResult = joinWP ",\n  " $ map (sqlSelectResult lang sel) (getFields $ getResult sel)
+    swpResult = joinSql ",\n  " $ map (sqlSelectResult lang sel) (getFields $ getResult sel)
 
 
 sqlDefaultValue :: DialectSQL -> Value -> String
@@ -271,21 +266,24 @@ sqlCreateFKey lang fkey = "ALTER TABLE "
 
 -- |SQL DELETE code generator.
 sqlDelete :: DialectSQL -> Delete -> SqlWithParams
-sqlDelete lang del = "DELETE FROM " ++ sFrom +< swpWhere
+sqlDelete lang del = sql ("DELETE FROM " ++ sFrom) +?+ swpWhere
   where
     sFrom  = quotedId lang $ getName $ getTable del
     swpWhere = let wr = getWhere del in
-        if wr == ExprTrue then "" ?? [] else "\nWHERE " +< sqlExpr lang wr
+        if wr == ExprTrue then sql "" else sql "\nWHERE " +?+ sqlExpr lang wr
 
 
 -- |SQL UPDATE code generator.
 sqlUpdate :: DialectSQL -> Update -> SqlWithParams
-sqlUpdate lang upd = "UPDATE " ++ sTable ++ " SET\n  " +< swpSet >+< swpWhere
+sqlUpdate lang upd = sql ("UPDATE " ++ sTable ++ " SET\n  ") +?+ swpSets +?+ swpWhere
   where
     sTable = quotedId lang $ getName $ getTable upd
     swpWhere = let wr = getWhere upd in
-        if wr == ExprTrue then "" ?? [] else "\nWHERE " +< sqlExpr lang wr
-    swpSet = joinWP "\n  " $ map (sqlExpr lang) (getUpdateSet upd)
+        if wr == ExprTrue then sql "" else sql "\nWHERE " +?+ sqlExpr lang wr
+    swpSets = joinSql "\n  " $ map perSet (getUpdateSet upd)
+
+    perSet :: SetExpression -> SqlWithParams
+    perSet (SetExpression s ex) = sql (quotedId lang s ++ " = ") +?+ sqlExpr lang ex
 
 
 -- |Returns sequence of the SQL operators to create all tables and

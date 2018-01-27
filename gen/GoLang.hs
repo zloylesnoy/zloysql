@@ -178,31 +178,19 @@ goExec lang sql = [
     "}",
     ""]
   where
-    swp :: SqlWithParams
     swp = getSql lang sql
-
-    queryString :: String
     queryString = "\"" ++ goEscaped (getQueryString swp) ++ "\""
-
-    paramsRec :: Record
-    paramsRec = getParams sql
-
-    funcParams :: String
-    funcParams = if null $ getFields paramsRec
+    paramsRec   = getParams sql
+    funcParams  = if null $ getFields paramsRec
         then ""
         else "a S_" ++ getName paramsRec
-
-    paramFields :: [Field]
     paramFields = selectByNames (getFields paramsRec) (getParamNames swp)
 
     qNumbered :: [(Int, Field)]
     qNumbered = zip [0..] paramFields
 
-    qParams :: [String]
     qParams = map (\p -> ", q" ++ show (fst p)) qNumbered
-
-    qVars :: [String]
-    qVars = map (goInputVar lang) qNumbered
+    qVars   = map (goInputVar lang) qNumbered
 
 
 goQuery :: (HasName q, HasSql q, HasParams q, HasResult q) => DialectSQL -> q -> [String]
@@ -244,24 +232,13 @@ goQuery lang sql = [
     "}",
     ""]
   where
-    swp :: SqlWithParams
     swp = getSql lang sql
-
-    queryString :: String
     queryString = "\"" ++ goEscaped (getQueryString swp) ++ "\""
-
-    paramsRec :: Record
-    paramsRec = getParams sql
-
-    resultRec :: Record
-    resultRec = getResult sql
-
-    funcParams :: String
-    funcParams = if null $ getFields paramsRec
+    paramsRec   = getParams sql
+    resultRec   = getResult sql
+    funcParams  = if null $ getFields paramsRec
         then ""
         else "a S_" ++ getName paramsRec
-
-    paramFields :: [Field]
     paramFields = selectByNames (getFields paramsRec) (getParamNames swp)
 
     qNumbered :: [(Int, Field)]
@@ -270,24 +247,15 @@ goQuery lang sql = [
     rNumbered :: [(Int, Field)]
     rNumbered = zip [0..] $ getFields resultRec
 
-    qParams :: [String]
-    qParams = map (\p -> ", q" ++ show (fst p)) qNumbered
-
-    rParams :: [String]
-    rParams = map (\p -> "&r" ++ show (fst p)) rNumbered
-
-    qVars :: [String]
-    qVars = map (goInputVar lang) qNumbered
-
-    rVars :: [String]
-    rVars = map (goOutputVar lang) rNumbered
-
-    rSetItem :: [String]
+    qParams  = map (\p -> ", q" ++ show (fst p)) qNumbered
+    rParams  = map (\p -> "&r" ++ show (fst p)) rNumbered
+    qVars    = map (goInputVar lang) qNumbered
+    rVars    = map (goOutputVar lang) rNumbered
     rSetItem = map (goSetItem lang) rNumbered
 
--- Create local varibale for SQL query input paramter.
+-- |Generate code to create local varibale for SQL query input paramter.
 goInputVar :: DialectSQL -> (Int, Field) -> String
-goInputVar lang (idx, fld) = tab:"var q" ++ show idx ++ " " ++ driverType ++ " = " ++ value ++ " // " ++ baseType
+goInputVar lang (idx, fld) = tab:"var q" ++ show idx ++ " " ++ driverType ++ " = " ++ value
   where
     nm = getName fld
     tp = getType fld
@@ -302,8 +270,9 @@ goInputVar lang (idx, fld) = tab:"var q" ++ show idx ++ " " ++ driverType ++ " =
           | driverType == "[]byte"         = "a.M_" ++ nm ++ ".ToSqlDriver()"
           | otherwise                      = driverType ++ "(a.M_" ++ nm ++ ")"
 
+-- |Generate code to assign local variable to item field.
 goSetItem :: DialectSQL -> (Int, Field) -> String
-goSetItem lang (idx, fld) = tab:tab:"item.M_" ++ getName fld ++ value ++ "// " ++ baseType ++ " " ++ driverType
+goSetItem lang (idx, fld) = tab:tab:"item.M_" ++ getName fld ++ value
   where
     n = show idx
     tp = getType fld

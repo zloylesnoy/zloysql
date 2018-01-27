@@ -1,2 +1,4 @@
 # zloysql
-Haskell code generator for SQL
+
+Code generator written on Haskell.
+Generate SQL and Go code.

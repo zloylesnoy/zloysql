@@ -8,6 +8,7 @@
     (.==.), (.!=.), (.<.), (.>.), (.<=.), (.>=.),
     (.==.?), (.!=.?), (.<.?), (.>.?), (.<=.?), (.>=.?),
     (.==.*), (.!=.*), (.<.*), (.>.*), (.<=.*), (.>=.*),
+    SetExpression(..), (.=.),
 
     From (..), Select, select,
     HasParams, params, getParams, nameParams,
@@ -152,10 +153,6 @@ data Expression
     -- |Используется в UPDATE table SET column = DEFAULT
     | ExprDefault
 
-    -- |Используется в секции SET оператора UPDATE
-    --  Первый параметр должен быть ExprField.
-    | ExprSet Expression Expression
-
     deriving (Eq, Show)
 
 instance ToText Expression where
@@ -174,7 +171,6 @@ instance ToText Expression where
     toText (ExprOuter alias nm tp) = "{^" ++ alias ++ "." ++ nm ++ "::" ++ getName tp ++ "}"
     toText (ExprJoinUsing xs) = "{USING " ++ show xs ++ "}"
     toText ExprDefault = "DEFAULT"
-    toText (ExprSet var val) = toText var ++ " = " ++ toText val
 
 instance HasTables Expression where
     innerTables expr = case expr of
@@ -182,13 +178,11 @@ instance HasTables Expression where
         ExprBinary e1 _ e2 -> innerTables e1 ++ innerTables e2
         ExprField tab _    -> [tab]
         ExprSelect sel     -> innerTables sel
-        ExprSet e1 e2      -> innerTables e1 ++ innerTables e2
         _                  -> []
     innerRecords expr = case expr of
         ExprUnary _ e1     -> innerRecords e1
         ExprBinary e1 _ e2 -> innerRecords e1 ++ innerRecords e2
         ExprSelect sel     -> innerRecords sel
-        ExprSet e1 e2      -> innerRecords e1 ++ innerRecords e2
         _                  -> []
 
 
@@ -357,10 +351,16 @@ infixl 4 .>=.*
 e1 .>=.* e2 = ExprBinary e1 ">= ALL" e2
 
 
+data SetExpression = SetExpression String Expression
+    deriving (Eq, Show)
+
 -- |Присваивание в UPDATE SET ...
-infixl 4 .=.
-(.=.) :: Expression -> Expression -> Expression
-e1 .=. e2 = ExprSet e1 e2
+infixl 2 .=.
+(.=.) :: String -> Expression -> SetExpression
+s .=. e2 = SetExpression s e2
+
+instance ToText SetExpression where
+    toText (SetExpression s e) = s ++ " = " ++ toText e
 
 
 -- |Упрощает выражение, выполняя операторы над константными операндами.
