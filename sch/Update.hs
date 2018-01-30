@@ -52,9 +52,11 @@ instance HasComment Update where
     comment ss t = t{ update'comment = ss }
     getComment = update'comment
 
-instance HasTables Update where
-    innerTables upd = [update'table upd] ++ innerTables (update'where upd)
-    innerRecords upd = innerRecords (update'where upd)
+instance HasInnerTables Update where
+    innerTables  upd = innerTables (update'where upd) ++
+        foldr (++) [update'table upd] (map innerTables $ update'set upd)
+    innerRecords upd = innerRecords (update'where upd) ++
+        foldr (++) [update'params upd] (map innerRecords $ update'set upd)
 
 instance HasParams Update where
     params pars upd = upd{ update'params = pars }

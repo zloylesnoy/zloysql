@@ -64,9 +64,9 @@ instance HasComment Delete where
 instance HasTable Delete where
     getTable = delete'table
 
-instance HasTables Delete where
-    innerTables del = [delete'table del] ++ innerTables (delete'where del)
-    innerRecords del = innerRecords (delete'where del)
+instance HasInnerTables Delete where
+    innerTables  del = [delete'table  del] ++ innerTables  (delete'where del)
+    innerRecords del = [delete'params del] ++ innerRecords (delete'where del)
 
 instance HasParams Delete where
     params pars del = del{ delete'params = pars }

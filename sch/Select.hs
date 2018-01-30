@@ -1,5 +1,5 @@
 ﻿module Select (
-    HasTables, innerTables, innerRecords,
+    HasInnerTables, innerTables, innerRecords,
 
     Expression(..), simplify,
     using, not_, inv, neg, exists, not_exists,
@@ -38,7 +38,7 @@ import Table
 
 
 -- |Сложное определение, которое содержит в себе определения таблиц и записей.
-class HasTables it where
+class HasInnerTables it where
     -- |Возвращает список таблиц, определённых внутри it.
     --  Таблицы в списке могут повторяться.
     innerTables :: it -> [Table]
@@ -172,7 +172,7 @@ instance ToText Expression where
     toText (ExprJoinUsing xs) = "{USING " ++ show xs ++ "}"
     toText ExprDefault = "DEFAULT"
 
-instance HasTables Expression where
+instance HasInnerTables Expression where
     innerTables expr = case expr of
         ExprUnary _ e1     -> innerTables e1
         ExprBinary e1 _ e2 -> innerTables e1 ++ innerTables e2
@@ -354,6 +354,10 @@ e1 .>=.* e2 = ExprBinary e1 ">= ALL" e2
 data SetExpression = SetExpression String Expression
     deriving (Eq, Show)
 
+instance HasInnerTables SetExpression where
+    innerTables  (SetExpression s e) = innerTables  e
+    innerRecords (SetExpression s e) = innerRecords e
+
 -- |Присваивание в UPDATE SET ...
 infixl 2 .=.
 (.=.) :: String -> Expression -> SetExpression
@@ -507,7 +511,7 @@ instance ToText From where
     toText (RightJoin f1 f2 expr) = "RightJoin {" ++ toText f1 ++ " * " ++ toText f2 ++ " ON " ++ toText expr ++ "}"
     toText (FromSelect sel) = "FromSelect {\n" ++ toText sel ++ "\n}"
 
-instance HasTables From where
+instance HasInnerTables From where
     innerTables f = case f of
         FromAs _ f1          -> innerTables f1
         FromTable tab        -> [tab]
@@ -557,7 +561,7 @@ instance ToText Select where
         bindToText :: String -> String -> Expression -> String
         bindToText s nm ex = s ++ indent ++ nm ++ " = " ++ toText ex ++ "\n"
 
-instance HasTables Select where
+instance HasInnerTables Select where
     innerTables sel = innerTables (select'from sel)
         ++ innerTables (select'where sel)
         ++ innerTables (select'having sel)
