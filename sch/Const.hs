@@ -7,7 +7,7 @@ import Type
 import Value
 
 
--- |Именованная типизированная константа.
+-- |Constant with name and type.
 data Const = Const {
     const'name    :: String,
     const'comment :: [String],

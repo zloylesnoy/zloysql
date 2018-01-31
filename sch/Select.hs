@@ -3,6 +3,7 @@
 
     Expression(..), simplify,
     using, not_, inv, neg, exists, not_exists,
+    (~.),
     (.+.), (.-.), (.*.), (./.), (.%.),
     (.&&.), (.||.), (.&.), (.|.), xor,
     (.==.), (.!=.), (.<.), (.>.), (.<=.), (.>=.),
@@ -134,8 +135,8 @@ data Expression
     --  "IN" "NOT IN"
     | ExprBinary Expression String Expression
 
-    -- |Параметр запроса (имя параметра, тип параметра).
-    | ExprParam String Type
+    -- |Параметр запроса (имя параметра).
+    | ExprParam String
 
     -- |Значение поля таблицы (таблица, имя поля).
     | ExprField Table String
@@ -155,6 +156,10 @@ data Expression
 
     deriving (Eq, Show)
 
+infixl 9 ~.
+(~.) :: Table -> String -> Expression
+(~.) tab col = ExprField tab col
+
 instance ToText Expression where
     toText ExprNull = "NULL"
     toText ExprFalse = "FALSE"
@@ -165,7 +170,7 @@ instance ToText Expression where
     toText (ExprStringConst x) = show x
     toText (ExprUnary oper e1) = "(" ++ oper ++ toText e1 ++ ")"
     toText (ExprBinary e1 oper e2) = "(" ++ toText e1 ++ " " ++ oper ++ " " ++ toText e2 ++ ")"
-    toText (ExprParam nm tp) = "{$" ++ nm ++ "::" ++ getName tp ++ "}"
+    toText (ExprParam nm) = "{$" ++ nm ++ "}"
     toText (ExprField tab nm) = getName tab ++ "." ++ nm
     toText (ExprSelect sel) = "(\n" ++ toText sel ++ "\n)"
     toText (ExprOuter alias nm tp) = "{^" ++ alias ++ "." ++ nm ++ "::" ++ getName tp ++ "}"
@@ -189,15 +194,15 @@ instance HasInnerTables Expression where
 using :: [String] -> Expression
 using ss = ExprJoinUsing ss
 
--- |Логическое НЕ.
+-- |Logical NOT.
 not_ :: Expression -> Expression
 not_ e1 = ExprUnary "NOT" e1
 
--- |Побитовое НЕ.
+-- |Bitwise NOT.
 inv :: Expression -> Expression
 inv e1 = ExprUnary "~" e1
 
--- |Смена знака.
+-- |Change sign.
 neg :: Expression -> Expression
 neg e1 = ExprUnary "-" e1
 
@@ -207,145 +212,145 @@ exists e1 = ExprUnary "EXISTS" e1
 not_exists :: Expression -> Expression
 not_exists e1 = ExprUnary "NOT EXISTS" e1
 
--- |Сложение чисел, конкатенация строк.
+-- |Add two numbers or concatenate two strings.
 infixl 6 .+.
 (.+.) :: Expression -> Expression -> Expression
 e1 .+. e2 = ExprBinary e1 "+" e2
 
--- |Вычитание.
+-- |Subtraction.
 infixl 6 .-.
 (.-.) :: Expression -> Expression -> Expression
 e1 .-. e2 = ExprBinary e1 "-" e2
 
--- |Умножение.
+-- |Multiplication.
 infixl 7 .*.
 (.*.) :: Expression -> Expression -> Expression
 e1 .*. e2 = ExprBinary e1 "*" e2
 
--- |Деление.
+-- |Division.
 infixl 7 ./.
 (./.) :: Expression -> Expression -> Expression
 e1 ./. e2 = ExprBinary e1 "/" e2
 
--- |Остаток от деления.
+-- |Reminder.
 infixl 7 .%.
 (.%.) :: Expression -> Expression -> Expression
 e1 .%. e2 = ExprBinary e1 "%" e2
 
--- |Логическое И.
+-- |Logical AND.
 infixr 3 .&&.
 (.&&.) :: Expression -> Expression -> Expression
 e1 .&&. e2 = ExprBinary e1 "AND" e2
 
--- |Логическое ИЛИ.
+-- |Logical OR.
 infixr 2 .||.
 (.||.) :: Expression -> Expression -> Expression
 e1 .||. e2 = ExprBinary e1 "OR" e2
 
--- |Побитовое И.
+-- |Bitwise AND.
 infixr 7 .&.
 (.&.) :: Expression -> Expression -> Expression
 e1 .&. e2 = ExprBinary e1 "&" e2
 
--- |Побитовое ИЛИ.
+-- |Bitwise OR.
 infixr 5 .|.
 (.|.) :: Expression -> Expression -> Expression
 e1 .|. e2 = ExprBinary e1 "|" e2
 
--- |Побитовое XOR.
+-- |Bitwise XOR.
 infixr 6 `xor`
 xor :: Expression -> Expression -> Expression
 xor e1 e2 = ExprBinary e1 "^" e2
 
 
--- |Равно.
+-- |Equals.
 infixl 4 .==.
 (.==.) :: Expression -> Expression -> Expression
 e1 .==. e2 = ExprBinary e1 "=" e2
 
--- |Не равно.
+-- |Not equals.
 infixl 4 .!=.
 (.!=.) :: Expression -> Expression -> Expression
 e1 .!=. e2 = ExprBinary e1 "!=" e2
 
--- |Меньше.
+-- |Less than.
 infixl 4 .<.
 (.<.) :: Expression -> Expression -> Expression
 e1 .<. e2 = ExprBinary e1 "<" e2
 
--- |Больше.
+-- |Greater than.
 infixl 4 .>.
 (.>.) :: Expression -> Expression -> Expression
 e1 .>. e2 = ExprBinary e1 ">" e2
 
--- |Меньше или равно.
+-- |Less or equals.
 infixl 4 .<=.
 (.<=.) :: Expression -> Expression -> Expression
 e1 .<=. e2 = ExprBinary e1 "<=" e2
 
--- |Больше или равно.
+-- |Greater or equals.
 infixl 4 .>=.
 (.>=.) :: Expression -> Expression -> Expression
 e1 .>=. e2 = ExprBinary e1 ">=" e2
 
 
--- |Равно одному из.
+-- |Equals any of.
 infixl 4 .==.?
 (.==.?) :: Expression -> Expression -> Expression
 e1 .==.? e2 = ExprBinary e1 "= ANY" e2
 
--- |Не равно одному из.
+-- |Not equals any of.
 infixl 4 .!=.?
 (.!=.?) :: Expression -> Expression -> Expression
 e1 .!=.? e2 = ExprBinary e1 "!= ANY" e2
 
--- |Меньше одного из.
+-- |Less than any.
 infixl 4 .<.?
 (.<.?) :: Expression -> Expression -> Expression
 e1 .<.? e2 = ExprBinary e1 "< ANY" e2
 
--- |Больше одного из.
+-- |Greater than any.
 infixl 4 .>.?
 (.>.?) :: Expression -> Expression -> Expression
 e1 .>.? e2 = ExprBinary e1 "> ANY" e2
 
--- |Меньше или равно одного из.
+-- |Less or equals any.
 infixl 4 .<=.?
 (.<=.?) :: Expression -> Expression -> Expression
 e1 .<=.? e2 = ExprBinary e1 "<= ANY" e2
 
--- |Больше или равно одного из.
+-- |Greater or equals any.
 infixl 4 .>=.?
 (.>=.?) :: Expression -> Expression -> Expression
 e1 .>=.? e2 = ExprBinary e1 ">= ANY" e2
 
 
--- |Равно всем из.
+-- |Equals all.
 infixl 4 .==.*
 (.==.*) :: Expression -> Expression -> Expression
 e1 .==.* e2 = ExprBinary e1 "= ALL" e2
 
--- |Не равно всем из.
+-- |Not equals all.
 infixl 4 .!=.*
 (.!=.*) :: Expression -> Expression -> Expression
 e1 .!=.* e2 = ExprBinary e1 "!= ALL" e2
 
--- |Меньше всех из.
+-- |Less than all.
 infixl 4 .<.*
 (.<.*) :: Expression -> Expression -> Expression
 e1 .<.* e2 = ExprBinary e1 "< ALL" e2
 
--- |Больше всех из.
+-- |Greater than all.
 infixl 4 .>.*
 (.>.*) :: Expression -> Expression -> Expression
 e1 .>.* e2 = ExprBinary e1 "> ALL" e2
 
--- |Меньше или равно всем из.
+-- |Less or equals all.
 infixl 4 .<=.*
 (.<=.*) :: Expression -> Expression -> Expression
 e1 .<=.* e2 = ExprBinary e1 "<= ALL" e2
 
--- |Больше или равно всем из.
+-- |Greate or equals all.
 infixl 4 .>=.*
 (.>=.*) :: Expression -> Expression -> Expression
 e1 .>=.* e2 = ExprBinary e1 ">= ALL" e2
@@ -358,7 +363,7 @@ instance HasInnerTables SetExpression where
     innerTables  (SetExpression s e) = innerTables  e
     innerRecords (SetExpression s e) = innerRecords e
 
--- |Присваивание в UPDATE SET ...
+-- |Assignment in the SET section of UPDATE query.
 infixl 2 .=.
 (.=.) :: String -> Expression -> SetExpression
 s .=. e2 = SetExpression s e2
@@ -490,8 +495,8 @@ simplify expr = case expr of
 
 
 
--- Не поддерживается FULL OUTER JOIN и NATURAL JOIN.
--- Expression может быть using
+-- FULL OUTER JOIN and NATURAL JOIN not supported.
+-- Expression can be USING.
 data From
     = FromAs String From -- ^ задать псевдоним
     | FromTable Table
@@ -530,7 +535,7 @@ instance HasInnerTables From where
         FromSelect sel       -> innerRecords sel
 
 
--- |Запрос SELECT.
+-- |SQL SELECT query.
 data Select = Select {
     select'name     :: String,
     select'comment  :: [String],
@@ -577,8 +582,8 @@ instance HasInnerTables Select where
         ++ concat (map innerRecords (Map.elems (select'binds sel)))
 
 
-select :: From -> Record -> Select
-select frm res = Select{
+select :: Record -> From -> Select
+select res frm = Select{
     select'name     = "select",
     select'comment  = [],
     select'params   = record,
@@ -710,9 +715,9 @@ getOffset :: Select -> Expression
 getOffset = select'offset
 
 
--- |Чтение одной записи таблицы по первичному ключу.
+-- |Read one record by primary key.
 readOne :: Table -> Select
-readOne tab = select (FromTable tab) (getRecord tab)
+readOne tab = select (getRecord tab) (FromTable tab)
     #name   ("ReadOne_" ++ getName tab)
     #params (primaryKeyRecord tab)
     #where_ (whereGiven tab primaryKey)
@@ -720,9 +725,9 @@ readOne tab = select (FromTable tab) (getRecord tab)
   where
     primaryKey = getKey tab
 
--- |Чтение всей таблицы, упорядоченной по первичному ключу.
+-- |Read all data from the table ordered by primary key.
 readAll :: Table -> Select
-readAll tab = select (FromTable tab) (getRecord tab)
+readAll tab = select (getRecord tab) (FromTable tab)
     #name    ("ReadAll_" ++ getName tab)
     #orderBy (map Asc primaryKey)
     // ("Read all records from '" ++ getName tab ++ "' table ordered by primary key.")
@@ -730,22 +735,17 @@ readAll tab = select (FromTable tab) (getRecord tab)
     primaryKey = getKey tab
 
 whereGiven :: Table -> [String] -> Expression
-whereGiven tab []  = ExprTrue
-whereGiven tab [x] = ExprField tab x .==. ExprParam x t
-  where
-    t = case getField x tab of
-      Nothing  -> error $ "Primary key field '" ++ x ++ "' not found in whereGiven"
-      Just fld -> getType fld
+whereGiven tab []     = ExprTrue
+whereGiven tab [x]    = ExprField tab x .==. ExprParam x
 whereGiven tab (x:xs) = whereGiven tab [x] .&&. whereGiven tab xs
 
--- |Переименовать структуру возвращаемых данных.
+-- |Rename returned record.
 returnAs :: String -> Select -> Select
 returnAs rn sel = sel{ select'result = sr }
   where
     sr = select'result sel #name rn
 
--- |Урезать структуру возвращаемых данных.
---  Структура переименовывается автоматически.
+-- |Reduce returned data and rename returned record.
 returnOnly :: [String] -> Select -> Select
 returnOnly xs sel = sel{ select'result = sr }
   where

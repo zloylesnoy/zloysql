@@ -12,7 +12,7 @@ import Table
 import Select
 
 
--- |Запрос UPDATE.
+-- |SQL UPDATE query.
 data Update = Update {
     update'name    :: String,
     update'comment :: [String],

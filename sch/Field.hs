@@ -7,14 +7,14 @@ import Common
 import Type
 
 
--- |Поле записи.
+-- |Field of the record.
 data Field = Field {
     field'name    :: String,
     field'comment :: [String],
     field'type    :: Type
 } deriving (Eq, Show)
 
--- |Конструктор поля записи.
+-- |Field constructor.
 field :: Type -> Field
 field t = Field{
     field'name    = getName t,

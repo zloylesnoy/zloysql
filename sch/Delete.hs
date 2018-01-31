@@ -8,7 +8,7 @@ import Table
 import Select
 
 
--- |Запрос DELETE.
+-- |SQL DELETE query.
 data Delete = Delete {
     delete'name    :: String,
     delete'comment :: [String],

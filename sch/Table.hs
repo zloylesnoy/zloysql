@@ -25,7 +25,7 @@ import Value
 
 data MyEngine = MYISAM | INNODB | MEMORY deriving (Show, Eq)
 
--- |Таблица.
+-- |SQL table.
 data Table = Table {
     table'name    :: String,
     table'comment :: [String],
@@ -36,7 +36,7 @@ data Table = Table {
     table'defs    :: Map.Map String Value -- Default values.
 } deriving (Eq, Show)
 
--- |Конструктор таблицы. Имя записи становится именем таблицы.
+-- |Table constructor. By default table name is record name.
 table :: Record -> Table
 table r = Table {
     table'name    = getName r,
@@ -103,48 +103,36 @@ getEngine :: Table -> MyEngine
 getEngine = table'engine
 
 
--- |Установить значение по умолчанию.
 setDefaultValue :: (String, Value) -> Table -> Table
 setDefaultValue (name, v) t = t{ table'defs = Map.insert name v $ table'defs t }
 
--- |Установить значение NULL по умолчанию.
+-- |Set default value to NULL.
 defaultNull :: String -> (Table -> Table)
 defaultNull s = setDefaultValue (s, NullValue)
 
--- |Установить целое значение по умолчанию.
-defaultInt :: String  -- ^ Имя поля.
-           -> Integer -- ^ Значение по умолчанию.
-           -> (Table -> Table)
+-- |Set integer as a default value.
+defaultInt :: String -> Integer -> (Table -> Table)
 defaultInt s v = setDefaultValue (s, IntValue v)
 
--- |Установить значение с фиксированной точкой по умолчанию.
-defaultDecimal :: String  -- ^ Имя поля.
-               -> Scientific
-               -> (Table -> Table)
+-- |Set decimal as a default value.
+defaultDecimal :: String -> Scientific -> (Table -> Table)
 defaultDecimal s v = setDefaultValue (s, DecimalValue v)
 
--- |Установить значение с плавающей точкой по умолчанию.
-defaultDouble :: String -- ^ Имя поля.
-              -> Double -- ^ Значение по умолчанию.
-              -> (Table -> Table)
+-- |Set float point as a default value.
+defaultDouble :: String -> Double -> (Table -> Table)
 defaultDouble s v = setDefaultValue (s, DoubleValue v)
 
--- |Установить строковое значение по умолчанию.
-defaultString :: String -- ^ Имя поля.
-              -> String -- ^ Значение по умолчанию.
-              -> (Table -> Table)
+-- |Set string as a default value.
+defaultString :: String -> String -> (Table -> Table)
 defaultString s v = setDefaultValue (s, StringValue v)
 
--- |Получить значение по умолчанию.
 getDefaultValue :: String -> Table -> Maybe Value
 getDefaultValue name t = Map.lookup name (table'defs t)
 
--- |Убрать значение по умолчанию.
 removeDefaultValue :: String -> Table -> Table
 removeDefaultValue name t = t{ table'defs = Map.delete name $ table'defs t }
 
 
--- |Проверка таблицы, возвращает список ошибок.
 instance HasCheck Table where
     check lang it = errorIn it $ checkName it
         ++ check lang (table'record it)
@@ -172,15 +160,15 @@ checkKey t
 
 checkAutokey :: Table -> Errors
 checkAutokey t
-    | not (table'autokey t)     = [] -- не задан autokey
+    | not (table'autokey t)     = []
     | length (table'key t) /= 1 = ["Table has multicolumn autokey."]
     | otherwise                 = case getField (head (table'key t)) (table'record t) of
-        Nothing -> [] -- ошибка есть, но её выдаст checkKey
+        Nothing -> [] -- there is an error, but checkKey will reports
         Just f  -> if getKind (getType f) == IntKind
             then [] -- OK
             else ["Autokey of the table is not IntKind."]
 
--- |Проверить одно значение по умолчанию.
+-- |Check one default value.
 checkOneDef :: String -> Value -> Table -> Errors
 checkOneDef name value t = case getField name (table'record t) of
     Nothing -> ["Table has not column '" ++ name ++ "' but has default value."]
@@ -191,7 +179,7 @@ checkDefs t = Map.foldrWithKey
     (\s v errors -> checkOneDef s v t ++ errors)
     [] (table'defs t)
 
--- |Проверить, что autokey не имеет значения по умолчанию.
+-- |Autokey can not has a default value.
 checkAutoDef :: Table -> Errors
 checkAutoDef t = if not (table'autokey t)
     then [] -- не задан autokey
@@ -201,7 +189,7 @@ checkAutoDef t = if not (table'autokey t)
             then ["Table has autokey '" ++ name ++ "' with default value."]
             else []
 
--- |Возвращает запись, в которую помещается выбранный набор полей таблицы.
+-- |Returns record with selected set of fields.
 selectedRecord :: Table -> [String] -> Record
 selectedRecord tab flds = record
     #name (getName tab ++ "_" ++ concat flds)
@@ -209,7 +197,7 @@ selectedRecord tab flds = record
   where
     isSelected fld = elem (getName fld) flds
 
--- |Возвращает запись, в которую помещается первичный ключ таблицы.
+-- |Returns record with primary key.
 primaryKeyRecord :: Table -> Record
 primaryKeyRecord tab = selectedRecord tab (getKey tab) #name (getName tab ++ "_Key")
 

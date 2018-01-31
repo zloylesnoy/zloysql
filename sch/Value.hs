@@ -18,7 +18,7 @@ data Value
     deriving(Eq, Show)
 
 
--- |Проверка, что значение соответствует типу.
+-- |Is value valid for that type.
 checkValue :: Type -> Value -> Errors
 checkValue t v = chVal t v (getKind t)
 
@@ -28,12 +28,12 @@ chVal t NullValue _ = if getNullable t
     then []
     else ["Null value not match '" ++ getName t ++ "' type."]
 
-chVal _ (DoubleValue _) FloatKind = [] -- TODO: Надо проверить, влезает ли в диапазон
+chVal _ (DoubleValue _) FloatKind = [] -- TODO: Is in diapason?
 chVal t (DoubleValue _) _ = ["Value of the '" ++ getName t ++ "' can not be float."]
 
 chVal t (StringValue v) StringKind
     | getStrlen t < toInteger (length v) = ["Value of the '" ++ getName t ++ "' is too long."]
-    -- TODO: Надо проверить кодировку
+    -- TODO: Check encoding.
     | otherwise = []
 chVal t (StringValue _) _ = ["Value of the '" ++ getName t ++ "' can not be string."]
 
@@ -47,9 +47,9 @@ chVal t (DecimalValue sc) DecimalKind
     scAfter  = max 0 (n - e)             -- sc has digits after dot
     scDigits = max scAfter (scAfter + e) -- sc has digits
     scBefore = scDigits - scAfter        -- sc has digits before dot
-    tAfter   = getPrecision t             -- t has digits after dot
-    tDigits  = getDigits t                -- t has digits
-    tBefore  = tDigits - tAfter           -- t has digits after dot
+    tAfter   = getPrecision t            -- t  has digits after dot
+    tDigits  = getDigits t               -- t  has digits
+    tBefore  = tDigits - tAfter          -- t  has digits after dot
 {-
     0.1234E-2 = 0.001234 n=4 e=-2 digits=6 after=6 before=0 zeroes=0
     0.1234E+0 = 0.1234   n=4 e=0  digits=4 after=4 before=0 zeroes=0
@@ -84,9 +84,6 @@ chVal t (IntValue v) DecimalKind
     minI = 0 - maxI
 
 chVal t (IntValue v) FloatKind
-    -- Тип t может принимать любое целое значение от minI до maxI.
-    -- Но если число v не входит в этот диапазон, оно всё ещё может
-    -- быть записано в тип t с точностью хуже 1. Как тут быть ?
     | v > maxI  = ["Value " ++ show v ++ " of the '" ++ getName t
                    ++ "' float type is greater than max value."]
     | v < minI  = ["Value " ++ show v ++ " of the '" ++ getName t

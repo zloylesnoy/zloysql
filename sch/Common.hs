@@ -96,7 +96,7 @@ showScientific sc =
     0.1234E+6 = 123400   n=4 e=6  digits=6 after=0 before=6 zeroes=2
 -}
 
--- |Найти неуникальные имена.
+-- |Find none-unique names.
 --  TODO: case insensitive
 repeated :: [String] -> [String]
 repeated []     = []
@@ -109,18 +109,17 @@ repeated (x:xs) = if x `elem` pred
   where
     pred = repeated xs
 
--- |Строка является правильным идентификатором.
---  MySQL ограничивает длину идентификаторов 64 символами.
+-- |String is a valid identifier.
+--  In MySQL maximum length is 64 symbols.
 goodId :: String -> Bool
 goodId id = (id =~ "^[a-zA-Z_][a-zA-Z_0-9]*$") && (length id < 64)
 
--- |Строка является правильным идентификатором с точками.
+-- |String is a valid identifier with dots.
 goodIdWithDots :: String -> Bool
 goodIdWithDots id = id =~ "^[a-zA-Z_][a-zA-Z_0-9]*([.][a-zA-Z_][a-zA-Z_0-9]*)*$"
 
 
--- |Результат проверки это список однострочных описаний ошибок.
---  Если проверка прошла успешно, возвращаем пустой список ошибок.
+-- |List of errors found. Empty list is OK.
 type Errors = [String]
 
 -- |Entitle error list with some title.
