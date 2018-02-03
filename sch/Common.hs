@@ -23,6 +23,7 @@ import Data.String.Utils (join, split)
 --  Adds one comment line.
 infixl 1 //
 
+
 -- |Helps with the fluent interface.
 infixl 1 #
 a # f = f a
@@ -38,6 +39,7 @@ instance (Show pa, Show ch) => ToText (Link pa ch) where
 infix 2 <--
 (<--) :: pa -> ch -> Link pa ch
 (<--) = Link
+
 
 data DialectSQL
     = MySQL
@@ -119,7 +121,7 @@ goodIdWithDots :: String -> Bool
 goodIdWithDots id = id =~ "^[a-zA-Z_][a-zA-Z_0-9]*([.][a-zA-Z_][a-zA-Z_0-9]*)*$"
 
 
--- |List of errors found. Empty list is OK.
+-- |List of errors found. OK is empty list.
 type Errors = [String]
 
 -- |Entitle error list with some title.
@@ -150,7 +152,7 @@ class HasName it where
 
     -- |Entitle error list with object name.
     errorIn :: it -> Errors -> Errors
-    errorIn x errors = entitleErrors ("Error in " ++ getTitle x) errors
+    errorIn x errors = entitleErrors ("Errors in " ++ getTitle x) errors
 
     -- |Is name a valid identifier.
     checkName :: it -> Errors

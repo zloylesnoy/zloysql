@@ -24,16 +24,14 @@ quotedIds lang ids = join ", " (map (quotedId lang) ids)
 
 -- |Quote string using escape-sequences for SQL.
 escaped :: DialectSQL -> String -> String
-
-escaped MySQL s = "'" ++ myEscaped s ++ "'"
-
-escaped PostgreSQL s = if pges == s
+escaped MySQL s        = "'" ++ myEscaped s ++ "'"
+escaped MicrosoftSQL s = "'" ++ myEscaped s ++ "'" -- TODO
+escaped PostgreSQL s   = if pges == s
     then "'" ++ s ++ "'"
     else "U&'" ++ pges ++ "'"
   where
     pges = pgEscaped s
 
-escaped MicrosoftSQL s = "'" ++ myEscaped s ++ "'" -- TODO
 
 
 -- |This symbols escaped in MySql.Data.MySqlClient.MySqlHelper.EscapeString (C#).
@@ -70,7 +68,7 @@ pgEscCh ch = if n < 0x10000
     else ['\\', '+', d5, d4, d3, d2, d1, d0]
   where
     n = fromEnum ch
-    d0 = hex (n .&. 15)
+    d0 = hex (       n    .&. 15)
     d1 = hex (shiftR n  4 .&. 15)
     d2 = hex (shiftR n  8 .&. 15)
     d3 = hex (shiftR n 12 .&. 15)
@@ -89,12 +87,12 @@ goEscCh ch = if n < 32
     else [ch]
   where
     n = fromEnum ch
-    d0 = hex (n .&. 15)
+    d0 = hex (       n    .&. 15)
     d1 = hex (shiftR n  4 .&. 15)
 
 -- |Quote string using escape-sequences for Go string.
 goEscaped :: String -> String
-goEscaped s = concat $ map goEscCh s
+goEscaped s = concat (map goEscCh s)
 
 -- |Decimal 0..15 to hexadecimal character.
 hex :: Int -> Char

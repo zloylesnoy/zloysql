@@ -1,7 +1,7 @@
 ﻿module Record (
     Record, record,
     fields, addFields,
-    joinField, joinFields, joinRecords,
+    joinField, joinRecords,
     selectFromRecord, removeFromRecord
 ) where
 
@@ -18,8 +18,8 @@ data Record = Record {
 } deriving (Eq, Show)
 
 record :: Record
-record = Record{
-    record'name    = "record",
+record = Record {
+    record'name    = "EmptyRecord",
     record'comment = [],
     record'fields  = []
 }
@@ -42,10 +42,10 @@ instance HasComment Record where
     getComment = record'comment
 
 checkFields :: DialectSQL -> Record -> Errors
-checkFields lang it = foldr (\f ss -> ss ++ check lang f) [] (record'fields it) ++
-    map errMsg (repeated $ map getName $ record'fields it)
-      where
-        errMsg = (\s -> "Duplicate field name '" ++ s ++ "'.")
+checkFields lang it = map errMsg (repeated $ map getName $ record'fields it) ++
+    concat (map (check lang) $ record'fields it)
+  where
+    errMsg = (\s -> "Duplicate field name '" ++ s ++ "'.")
 
 instance HasCheck Record where
     check lang it = errorIn it $ checkName it ++ checkFields lang it
@@ -56,33 +56,29 @@ instance HasFields Record where
 fields :: [Field] -> Record -> Record
 fields flds r = r{ record'fields = flds }
 
--- |Добавить поля без проверки на совпадение названий.
+-- |Add fields, names not checked.
 addFields :: [Field] -> Record -> Record
 addFields fs r = r{ record'fields = old ++ fs } where old = record'fields r
 
--- |Добавить поле, если поля с таким названием не было в записи.
+-- |Add field only if name is unique.
 joinField :: Record -> Field -> Record
 joinField r fld = if hasField r (getName fld)
     then r
     else addFields [fld] r
 
--- |Добавить те поля, названий которых не было в записи.
-joinFields :: Record -> [Field] -> Record
-joinFields = foldl joinField
-
--- |Объединить две записи. Если есть совпадающие имена полей, оставить только первое из них.
+-- |Join two records. If there are matching field names, leave only the first one.
 joinRecords :: Record -> Record -> Record
-joinRecords r1 r2 = joinFields r1 (getFields r2)
+joinRecords r1 r2 = foldl joinField r1 (getFields r2)
     #name (getName r1 ++ getName r2)
     // (getName r1 ++ " JOIN " ++ getName r2)
 
--- |Оставить в записи только поля с именами из списка в порядке, заданном списком.
+-- |Leave in the record only fields with names from the list in the order given by the list.
 selectFromRecord :: [String] -> Record -> Record
 selectFromRecord names rc = record
     #name   (getName rc ++ "_" ++ concat names)
     #fields (selectByNames (getFields rc) names)
 
--- |Оставить в записи только поля с именами не из списка.
+-- |Keep in the records only fields with names not from the list.
 removeFromRecord :: [String] -> Record -> Record
 removeFromRecord flds rc = rc{ record'fields = filter f (getFields rc) }
   where

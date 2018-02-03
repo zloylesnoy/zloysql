@@ -152,7 +152,7 @@ checkKey :: Table -> Errors
 checkKey t
     | null key  = ["Table has empty primary key."]
     | null dups = concat $ map (checkKeyField t) key
-    | otherwise = map dupmsg dups -- есть дублирующиеся поля в primary key
+    | otherwise = map dupmsg dups -- there are duplicated fields in the primary key
   where
     key = table'key t
     dups = repeated key

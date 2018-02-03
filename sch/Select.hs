@@ -4,12 +4,12 @@
     Expression(..), simplify,
     using, not_, inv, neg, exists, not_exists,
     (~.),
-    (.+.), (.-.), (.*.), (./.), (.%.),
-    (.&&.), (.||.), (.&.), (.|.), xor,
-    (.==.), (.!=.), (.<.), (.>.), (.<=.), (.>=.),
-    (.==.?), (.!=.?), (.<.?), (.>.?), (.<=.?), (.>=.?),
-    (.==.*), (.!=.*), (.<.*), (.>.*), (.<=.*), (.>=.*),
-    SetExpression(..), (.=.),
+    (~+), (~-), (~*), (~/), (~%),
+    (~&&), (~||), (~&), (~|), (~^),
+    (~==), (~!=), (~<), (~>), (~<=), (~>=),
+    (~==?), (~!=?), (~<?), (~>?), (~<=?), (~>=?),
+    (~==*), (~!=*), (~<*), (~>*), (~<=*), (~>=*),
+    SetExpression(..), (~=),
 
     From (..), Select, select,
     HasParams, params, getParams, nameParams,
@@ -213,147 +213,147 @@ not_exists :: Expression -> Expression
 not_exists e1 = ExprUnary "NOT EXISTS" e1
 
 -- |Add two numbers or concatenate two strings.
-infixl 6 .+.
-(.+.) :: Expression -> Expression -> Expression
-e1 .+. e2 = ExprBinary e1 "+" e2
+infixl 6 ~+
+(~+) :: Expression -> Expression -> Expression
+e1 ~+ e2 = ExprBinary e1 "+" e2
 
 -- |Subtraction.
-infixl 6 .-.
-(.-.) :: Expression -> Expression -> Expression
-e1 .-. e2 = ExprBinary e1 "-" e2
+infixl 6 ~-
+(~-) :: Expression -> Expression -> Expression
+e1 ~- e2 = ExprBinary e1 "-" e2
 
 -- |Multiplication.
-infixl 7 .*.
-(.*.) :: Expression -> Expression -> Expression
-e1 .*. e2 = ExprBinary e1 "*" e2
+infixl 7 ~*
+(~*) :: Expression -> Expression -> Expression
+e1 ~* e2 = ExprBinary e1 "*" e2
 
 -- |Division.
-infixl 7 ./.
-(./.) :: Expression -> Expression -> Expression
-e1 ./. e2 = ExprBinary e1 "/" e2
+infixl 7 ~/
+(~/) :: Expression -> Expression -> Expression
+e1 ~/ e2 = ExprBinary e1 "/" e2
 
 -- |Reminder.
-infixl 7 .%.
-(.%.) :: Expression -> Expression -> Expression
-e1 .%. e2 = ExprBinary e1 "%" e2
+infixl 7 ~%
+(~%) :: Expression -> Expression -> Expression
+e1 ~% e2 = ExprBinary e1 "%" e2
 
 -- |Logical AND.
-infixr 3 .&&.
-(.&&.) :: Expression -> Expression -> Expression
-e1 .&&. e2 = ExprBinary e1 "AND" e2
+infixr 3 ~&&
+(~&&) :: Expression -> Expression -> Expression
+e1 ~&& e2 = ExprBinary e1 "AND" e2
 
 -- |Logical OR.
-infixr 2 .||.
-(.||.) :: Expression -> Expression -> Expression
-e1 .||. e2 = ExprBinary e1 "OR" e2
+infixr 2 ~||
+(~||) :: Expression -> Expression -> Expression
+e1 ~|| e2 = ExprBinary e1 "OR" e2
 
 -- |Bitwise AND.
-infixr 7 .&.
-(.&.) :: Expression -> Expression -> Expression
-e1 .&. e2 = ExprBinary e1 "&" e2
+infixr 7 ~&
+(~&) :: Expression -> Expression -> Expression
+e1 ~& e2 = ExprBinary e1 "&" e2
 
 -- |Bitwise OR.
-infixr 5 .|.
-(.|.) :: Expression -> Expression -> Expression
-e1 .|. e2 = ExprBinary e1 "|" e2
+infixr 5 ~|
+(~|) :: Expression -> Expression -> Expression
+e1 ~| e2 = ExprBinary e1 "|" e2
 
 -- |Bitwise XOR.
-infixr 6 `xor`
-xor :: Expression -> Expression -> Expression
-xor e1 e2 = ExprBinary e1 "^" e2
+infixr 6 ~^
+(~^) :: Expression -> Expression -> Expression
+e1 ~^ e2 = ExprBinary e1 "^" e2
 
 
 -- |Equals.
-infixl 4 .==.
-(.==.) :: Expression -> Expression -> Expression
-e1 .==. e2 = ExprBinary e1 "=" e2
+infixl 4 ~==
+(~==) :: Expression -> Expression -> Expression
+e1 ~== e2 = ExprBinary e1 "=" e2
 
 -- |Not equals.
-infixl 4 .!=.
-(.!=.) :: Expression -> Expression -> Expression
-e1 .!=. e2 = ExprBinary e1 "!=" e2
+infixl 4 ~!=
+(~!=) :: Expression -> Expression -> Expression
+e1 ~!= e2 = ExprBinary e1 "!=" e2
 
 -- |Less than.
-infixl 4 .<.
-(.<.) :: Expression -> Expression -> Expression
-e1 .<. e2 = ExprBinary e1 "<" e2
+infixl 4 ~<
+(~<) :: Expression -> Expression -> Expression
+e1 ~< e2 = ExprBinary e1 "<" e2
 
 -- |Greater than.
-infixl 4 .>.
-(.>.) :: Expression -> Expression -> Expression
-e1 .>. e2 = ExprBinary e1 ">" e2
+infixl 4 ~>
+(~>) :: Expression -> Expression -> Expression
+e1 ~> e2 = ExprBinary e1 ">" e2
 
 -- |Less or equals.
-infixl 4 .<=.
-(.<=.) :: Expression -> Expression -> Expression
-e1 .<=. e2 = ExprBinary e1 "<=" e2
+infixl 4 ~<=
+(~<=) :: Expression -> Expression -> Expression
+e1 ~<= e2 = ExprBinary e1 "<=" e2
 
 -- |Greater or equals.
-infixl 4 .>=.
-(.>=.) :: Expression -> Expression -> Expression
-e1 .>=. e2 = ExprBinary e1 ">=" e2
+infixl 4 ~>=
+(~>=) :: Expression -> Expression -> Expression
+e1 ~>= e2 = ExprBinary e1 ">=" e2
 
 
 -- |Equals any of.
-infixl 4 .==.?
-(.==.?) :: Expression -> Expression -> Expression
-e1 .==.? e2 = ExprBinary e1 "= ANY" e2
+infixl 4 ~==?
+(~==?) :: Expression -> Expression -> Expression
+e1 ~==? e2 = ExprBinary e1 "= ANY" e2
 
 -- |Not equals any of.
-infixl 4 .!=.?
-(.!=.?) :: Expression -> Expression -> Expression
-e1 .!=.? e2 = ExprBinary e1 "!= ANY" e2
+infixl 4 ~!=?
+(~!=?) :: Expression -> Expression -> Expression
+e1 ~!=? e2 = ExprBinary e1 "!= ANY" e2
 
 -- |Less than any.
-infixl 4 .<.?
-(.<.?) :: Expression -> Expression -> Expression
-e1 .<.? e2 = ExprBinary e1 "< ANY" e2
+infixl 4 ~<?
+(~<?) :: Expression -> Expression -> Expression
+e1 ~<? e2 = ExprBinary e1 "< ANY" e2
 
 -- |Greater than any.
-infixl 4 .>.?
-(.>.?) :: Expression -> Expression -> Expression
-e1 .>.? e2 = ExprBinary e1 "> ANY" e2
+infixl 4 ~>?
+(~>?) :: Expression -> Expression -> Expression
+e1 ~>? e2 = ExprBinary e1 "> ANY" e2
 
 -- |Less or equals any.
-infixl 4 .<=.?
-(.<=.?) :: Expression -> Expression -> Expression
-e1 .<=.? e2 = ExprBinary e1 "<= ANY" e2
+infixl 4 ~<=?
+(~<=?) :: Expression -> Expression -> Expression
+e1 ~<=? e2 = ExprBinary e1 "<= ANY" e2
 
 -- |Greater or equals any.
-infixl 4 .>=.?
-(.>=.?) :: Expression -> Expression -> Expression
-e1 .>=.? e2 = ExprBinary e1 ">= ANY" e2
+infixl 4 ~>=?
+(~>=?) :: Expression -> Expression -> Expression
+e1 ~>=? e2 = ExprBinary e1 ">= ANY" e2
 
 
 -- |Equals all.
-infixl 4 .==.*
-(.==.*) :: Expression -> Expression -> Expression
-e1 .==.* e2 = ExprBinary e1 "= ALL" e2
+infixl 4 ~==*
+(~==*) :: Expression -> Expression -> Expression
+e1 ~==* e2 = ExprBinary e1 "= ALL" e2
 
 -- |Not equals all.
-infixl 4 .!=.*
-(.!=.*) :: Expression -> Expression -> Expression
-e1 .!=.* e2 = ExprBinary e1 "!= ALL" e2
+infixl 4 ~!=*
+(~!=*) :: Expression -> Expression -> Expression
+e1 ~!=* e2 = ExprBinary e1 "!= ALL" e2
 
 -- |Less than all.
-infixl 4 .<.*
-(.<.*) :: Expression -> Expression -> Expression
-e1 .<.* e2 = ExprBinary e1 "< ALL" e2
+infixl 4 ~<*
+(~<*) :: Expression -> Expression -> Expression
+e1 ~<* e2 = ExprBinary e1 "< ALL" e2
 
 -- |Greater than all.
-infixl 4 .>.*
-(.>.*) :: Expression -> Expression -> Expression
-e1 .>.* e2 = ExprBinary e1 "> ALL" e2
+infixl 4 ~>*
+(~>*) :: Expression -> Expression -> Expression
+e1 ~>* e2 = ExprBinary e1 "> ALL" e2
 
 -- |Less or equals all.
-infixl 4 .<=.*
-(.<=.*) :: Expression -> Expression -> Expression
-e1 .<=.* e2 = ExprBinary e1 "<= ALL" e2
+infixl 4 ~<=*
+(~<=*) :: Expression -> Expression -> Expression
+e1 ~<=* e2 = ExprBinary e1 "<= ALL" e2
 
 -- |Greate or equals all.
-infixl 4 .>=.*
-(.>=.*) :: Expression -> Expression -> Expression
-e1 .>=.* e2 = ExprBinary e1 ">= ALL" e2
+infixl 4 ~>=*
+(~>=*) :: Expression -> Expression -> Expression
+e1 ~>=* e2 = ExprBinary e1 ">= ALL" e2
 
 
 data SetExpression = SetExpression String Expression
@@ -364,9 +364,9 @@ instance HasInnerTables SetExpression where
     innerRecords (SetExpression s e) = innerRecords e
 
 -- |Assignment in the SET section of UPDATE query.
-infixl 2 .=.
-(.=.) :: String -> Expression -> SetExpression
-s .=. e2 = SetExpression s e2
+infixl 2 ~=
+(~=) :: String -> Expression -> SetExpression
+s ~= e2 = SetExpression s e2
 
 instance ToText SetExpression where
     toText (SetExpression s e) = s ++ " = " ++ toText e
@@ -654,10 +654,10 @@ class HasWhere it where
     notWhere x = where_ (not_ $ getWhere x) x
 
     andWhere :: Expression -> it -> it
-    andWhere expr x = where_ (getWhere x .&&. expr) x
+    andWhere expr x = where_ (getWhere x ~&& expr) x
 
     orWhere :: Expression -> it -> it
-    orWhere expr x = where_ (getWhere x .||. expr) x
+    orWhere expr x = where_ (getWhere x ~|| expr) x
 
 instance HasWhere Select where
     where_ w sel = sel{ select'where = simplify w }
@@ -736,8 +736,8 @@ readAll tab = select (getRecord tab) (FromTable tab)
 
 whereGiven :: Table -> [String] -> Expression
 whereGiven tab []     = ExprTrue
-whereGiven tab [x]    = ExprField tab x .==. ExprParam x
-whereGiven tab (x:xs) = whereGiven tab [x] .&&. whereGiven tab xs
+whereGiven tab [x]    = ExprField tab x ~== ExprParam x
+whereGiven tab (x:xs) = whereGiven tab [x] ~&& whereGiven tab xs
 
 -- |Rename returned record.
 returnAs :: String -> Select -> Select

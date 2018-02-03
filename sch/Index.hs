@@ -13,33 +13,29 @@ import Field
 import Table
 
 
--- |Разновидности индексов. Для начала нужно поддерживать первые две.
 data IndexKind
-    -- |Неуникальный индекс.
     = NotUniqueIndex
 
-    -- |Уникальный индекс, NULL-значения не допускаются.
+    -- NULL values are forbidden.
     | UniqueIndex
 
-    -- |Уникальный индекс, NULL-значения не допускаются.
-    --  Быстрое сравнение на равенство, но не ускоряет операции меньше-больше. 
-    --  Поддерживается таблицами на движке MEMORY.
+    -- NULL values are forbidden. Fast ==, !=. Slow < > <= >=.
     | HashUniqueIndex
 
-    -- |Индекс для полнотекстового поиска.
+    -- Not supported yet.
     | FullTextIndex
 
-    -- |Индекс по более чем одному измерению.
+    -- Not supported yet.
     | SpatialIndex
     deriving (Eq, Show)
 
 -- |Индекс таблицы.
 data Index = Index {
-    index'name    :: String,    -- ^ Имя индекса.
-    index'comment :: [String],  -- ^ Комментарий к индексу.
-    index'kind    :: IndexKind, -- ^ Разновидность индекса.
-    index'table   :: Table,     -- ^ Индексируемая таблица
-    index'order   :: [Order]    -- ^ Поля индекса.
+    index'name    :: String,
+    index'comment :: [String],
+    index'kind    :: IndexKind,
+    index'table   :: Table,
+    index'order   :: [Order]
 } deriving (Eq, Show)
 
 index :: Table -> [Order] -> Index
@@ -86,14 +82,21 @@ instance HasTable Index where
 
 instance HasCheck Index where
     check lang it = errorIn it $ checkName it
+        ++ checkKind it
         ++ check lang (index'table it)
         ++ checkFields it
+
+checkKind :: Index -> Errors
+checkKind idx = case index'kind idx of
+    NotUniqueIndex -> []
+    UniqueIndex    -> []
+    _              -> ["Index kind " ++ show (index'kind idx) ++ " is not supported." ]
 
 checkFields :: Index -> Errors
 checkFields idx
     | null names = ["Index has no fields."]
-    | null dups  = concat $ map (checkOneField idx) names
-    | otherwise  = map dupMsg dups -- есть дублирующиеся поля в индексе
+    | null dups  = concat $ map (checkOneField idx) names -- no duplicated fields
+    | otherwise  = map dupMsg dups -- there are duplicated fields in the index
   where
     names = map orderFieldName (getOrder idx)
     dups = repeated names

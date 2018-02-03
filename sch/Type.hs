@@ -360,19 +360,23 @@ checkStrlen it = case (type'kind it, type'strlen it) of
     (_, Nothing) -> []
     (kind, Just _) -> ["type'strlen defined for " ++ show kind ++ "."]
 
+-- |Check type, returns [] if OK.
+checkType :: Type -> Errors
+checkType it = checkName it
+    ++ checkCastTo it
+    ++ checkMinValue it
+    ++ checkMaxValue it
+    ++ checkDigits it
+    ++ checkPrecision it
+    ++ checkDP it
+    ++ checkMantissa it
+    ++ checkExpBits it
+    ++ checkEncoding it
+    ++ checkPrefer it
+    ++ checkStrlen it
+
 instance HasCheck Type where
-    check _ it = errorIn it $ checkName it
-        ++ checkCastTo it
-        ++ checkMinValue it
-        ++ checkMaxValue it
-        ++ checkDigits it
-        ++ checkPrecision it
-        ++ checkDP it
-        ++ checkMantissa it
-        ++ checkExpBits it
-        ++ checkEncoding it
-        ++ checkPrefer it
-        ++ checkStrlen it
+    check _ it = errorIn it (checkType it)
 
 
 instance HasName Type where
@@ -399,17 +403,18 @@ notNull :: Type -> Type
 notNull a = a #nullable False
 
 
--- Для некоторых типов данных нужно генерировать автоматическую
--- конвертацию в некий специальный тип, например enum.
+-- If you need generate cast to some special type, for example to enum.
 getCastTo :: Type -> Maybe String
 getCastTo = type'castTo
 
--- Чтобы очистить поле type'castTo, можно использовать #castTo "".
+-- Use #castTo "" to clear type'castTo field.
 castTo :: String -> Type -> Type
-castTo v it = if v == "" then it{ type'castTo = Nothing } else it{ type'castTo = Just v }
+castTo v it = if v == ""
+    then it{ type'castTo = Nothing }
+    else it{ type'castTo = Just v  }
 
 
--- Перед использованием геттеров лучше проверить тип функцией checkType.
+-- Check type by checkType before using getters.
 
 getKind :: Type -> Kind
 getKind = type'kind
@@ -460,8 +465,8 @@ getStrlen it = case type'strlen it of
     Nothing -> error (getTitle it ++ " not supports type'strlen property.")
 
 
--- Сеттеры ничего не проверяют.
--- Проверка будет потом при помощи checkType.
+-- Setters do not check resulted type.
+-- Use checkType after all setters applyed.
 
 minValue :: Integer -> Type -> Type
 minValue v it = it{ type'minValue = Just v }
@@ -490,7 +495,7 @@ prefer v it = it{ type'prefer = Just v }
 strlen :: Integer -> Type -> Type
 strlen v it = it{ type'strlen = Just v }
 
--- Специальные сеттеры для minValue и maxValue.
+-- Special setters for minValue and maxValue.
 
 bits :: Int -> Type -> Type
 bits v it = case type'kind it of
@@ -501,8 +506,8 @@ bits v it = case type'kind it of
 includeValue :: Integer -> Type -> Type
 includeValue v it = it # minValue (min v (getMinValue it)) # maxValue (max v (getMaxValue it))
 
--- Можно ли хранить тип it как двоичное целое со знаком,
--- имеющее bits бит, включая знаковый бит.
+-- Can we save type 'it' as signed binary integer
+-- with 'bits' bits (sign bit included).
 asSignedInteger :: Type -> Int -> Bool
 asSignedInteger it bits = case type'kind it of
     IntKind  -> (getMinValue it >= minI) && (getMaxValue it <= maxI)
@@ -512,7 +517,7 @@ asSignedInteger it bits = case type'kind it of
     maxI = pow2x (bits - 1) - 1
     minI = 0 - pow2x (bits - 1)
 
--- Можно ли хранить тип it как двоичное целое без знака, имеющее bits бит.
+-- Can we save type 'it' as unsigned binary integer with 'bits' bits.
 asUnsignedInteger :: Type -> Int -> Bool
 asUnsignedInteger it bits = case type'kind it of
     IntKind  -> (getMinValue it >= 0) && (getMaxValue it <= maxI)
@@ -521,8 +526,8 @@ asUnsignedInteger it bits = case type'kind it of
   where
     maxI = pow2x bits - 1
 
--- Можно ли хранить тип it как число с плавающей точкой, имеющее
--- мантиссу из mant бит и экспоненту из expo бит.
+-- Can we save type 'it' as float point number
+-- with 'mant' mantissa bits and 'expo' exponent bits.
 asFloat :: Type -> Int -> Int -> Bool
 asFloat it mant expo = case type'kind it of
     IntKind   -> (getMinValue it >= minI) && (getMaxValue it < maxI)
@@ -532,16 +537,16 @@ asFloat it mant expo = case type'kind it of
     maxI = pow2x mant - 1
     minI = 0 - maxI
 
--- Можно ли хранить тип it как 32-битное число с плавающей точкой.
+-- Can we save type 'it' as standard 32 bits float point number.
 asFloat32 :: Type -> Bool
 asFloat32 it = asFloat it 24 8
 
--- Можно ли хранить тип it как 64-битное число с плавающей точкой.
+-- Can we save type 'it' as standard 64 bits float point number.
 asFloat64 :: Type -> Bool
 asFloat64 it = asFloat it 53 11
 
--- Можно ли хранить тип it как десятичное с фиксированной точкой со знаком,
--- имеющее dig цифр, из которых prec цифр после запятой.
+-- Can we save type 'it' as signed decimal number with fixed point,
+-- with 'dig' digits including 'prec' digits after decimal point.
 asDecimal :: Type -> Int -> Int -> Bool
 asDecimal it dig prec = case type'kind it of
     IntKind     -> (getMinValue  it >= minI) && (getMaxValue it < maxI)
@@ -551,14 +556,13 @@ asDecimal it dig prec = case type'kind it of
     maxI = pow10x (max (dig - prec) 0) - 1
     minI = 0 - maxI
 
--- Можно ли хранить тип it как десятичное целое со знаком.
--- Если да, возвращает требуемое количество десятичных цифр.
--- Если нет, возвращает -1.
+-- Can we save type 'it' as signed decimal number with fixed point.
+-- If yes, returns how many digits required. If not, returns -1.
 asDecimalInt :: Type -> Int
 asDecimalInt it = case type'kind it of
     DecimalKind -> if getPrecision it == 0 then getDigits it else 0 - 1
     IntKind     -> let f x = if asDecimal it x 0 then x else f (x + 1) in f 1
-    _           -> 0 - 1 -- в том числе BitsKind, потому что требуется поддержка побитовых операций
+    _           -> 0 - 1 -- BitsKind do not supports bitwise operators
 
 
 class HasType a where
